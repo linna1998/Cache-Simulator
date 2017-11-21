@@ -146,6 +146,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="cache.cc" />
+    <ClCompile Include="main.cc" />
+    <ClCompile Include="Makefile" />
+    <ClCompile Include="memory.cc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="cache.h" />
+    <ClInclude Include="def.h" />
+    <ClInclude Include="memory.h" />
+    <ClInclude Include="storage.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
