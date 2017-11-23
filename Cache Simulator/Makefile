@@ -3,7 +3,7 @@ CC = g++
 all: sim
 
 	sim : main.o cache.o memory.o
-	$(CC) - o $@ $^
+	$(CC) -o $@ $^
 
 	main.o: cache.h
 
@@ -14,4 +14,4 @@ all: sim
 	.PHONY : clean
 
 	clean :
-rm - rf sim *.o
+rm -rf sim *.o

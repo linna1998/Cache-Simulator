@@ -4,7 +4,8 @@
 #include <stdint.h>
 #include "storage.h"
 
-class Memory : public Storage {
+class Memory : public Storage 
+{
 public:
 	Memory() {}
 	~Memory() {}

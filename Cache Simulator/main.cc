@@ -2,10 +2,20 @@
 #include "cache.h"
 #include "memory.h"
 
-int main(void) {
+int main(void) 
+{
 	Memory m;
 	Cache l1;
 	l1.SetLower(&m);
+	CacheConfig_ cc;
+	// ÀÊ ÷…Ëµƒ
+	cc.write_through = 0;
+	cc.write_allocate = 0;
+	cc.b = 4;
+	cc.e = 3;
+	cc.s = 4;
+	l1.SetConfig(cc);
+	l1.BuildCache();
 
 	StorageStats s;
 	s.access_time = 0;
