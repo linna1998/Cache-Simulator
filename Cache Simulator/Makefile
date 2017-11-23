@@ -2,16 +2,16 @@ CC = g++
 
 all: sim
 
-	sim : main.o cache.o memory.o
+sim : main.o cache.o memory.o
 	$(CC) -o $@ $^
 
-	main.o: cache.h
+main.o: cache.h
 
-	cache.o : cache.h def.h
+cache.o : cache.h def.h
 
-	memory.o : memory.h
+memory.o : memory.h
 
-	.PHONY : clean
+.PHONY : clean
 
-	clean :
-rm -rf sim *.o
+clean :
+	rm -rf sim *.o

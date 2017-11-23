@@ -28,7 +28,7 @@ typedef struct Block
 {
 	bool valid;
 	int tag;
-	bool dirty;  // dirty==true means ot has been written  
+	vector<bool> dirty;  // dirty==true means ot has been written  
 	vector<int> data_block;
 };
 typedef struct Set

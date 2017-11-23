@@ -34,10 +34,10 @@ void Cache::BuildCache()
 	Block new_block;
 	new_block.tag = 0;
 	new_block.valid = false;
-	new_block.dirty = false;
 	for (int i = 0; i < config_.B; i++)
 	{
 		new_block.data_block.push_back(0);
+		new_block.dirty.push_back(false);
 	}
 	Set new_set;
 	for (int i = 0; i < config_.E; i++)
@@ -61,39 +61,86 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 	uint64_t set_index;
 	uint64_t block_offset;
 
-	// Bypass?
-	if (!BypassDecision())
+	// Read.
+	if (read == 1)
 	{
-		PartitionAlgorithm(addr, tag, set_index, block_offset);
-		// Miss?
-		if (ReplaceDecision(tag, set_index))
+		// Bypass?
+		if (!BypassDecision())
 		{
-			// Choose victim
-			ReplaceAlgorithm(tag, set_index);
+			PartitionAlgorithm(addr, tag, set_index, block_offset);
+			// Miss?
+			if (ReplaceDecision(tag, set_index))
+			{
+				// Choose victim
+				ReplaceAlgorithm(tag, set_index);
+			}
+			else
+			{
+				// return hit & time
+				hit = 1;
+				time += latency_.bus_latency + latency_.hit_latency;
+				stats_.access_time += time;
+				return;
+			}
+		}
+		// Prefetch?
+		if (PrefetchDecision())
+		{
+			PrefetchAlgorithm();
 		}
 		else
 		{
-			// return hit & time
-			hit = 1;
-			time += latency_.bus_latency + latency_.hit_latency;
-			stats_.access_time += time;
-			return;
+			// Fetch from lower layer
+			int lower_hit, lower_time;
+			lower_->HandleRequest(addr, bytes, read, content,
+				lower_hit, lower_time);
+			hit = 0;
+			time += latency_.bus_latency + lower_time;
+			stats_.access_time += latency_.bus_latency;
 		}
 	}
-	// Prefetch?
-	if (PrefetchDecision())
+	// Write
+	else if (read == 0)
 	{
-		PrefetchAlgorithm();
-	}
-	else
-	{
-		// Fetch from lower layer
-		int lower_hit, lower_time;
-		lower_->HandleRequest(addr, bytes, read, content,
-			lower_hit, lower_time);
-		hit = 0;
-		time += latency_.bus_latency + lower_time;
-		stats_.access_time += latency_.bus_latency;
+		PartitionAlgorithm(addr, tag, set_index, block_offset);
+		// Don't write allocate && write back
+		bool miss = ReplaceDecision(tag, set_index);
+		if (miss && (config_.write_allocate == 1))
+		{		
+			ReplaceAlgorithm(tag, set_index);  // Load to cache.
+		}
+		if (config_.write_allocate == 1 || 
+			((!miss) && config_.write_through == 1 && config_.write_allocate == 0))
+		{
+			int block_index;
+			// Write to cache, data_cache[set_index].data_set[block_index]
+			for (int i = 0; i < config_.E; i++)
+			{
+				if (data_cache[set_index].data_set[i].tag == tag)
+				{
+					data_cache[set_index].value[i] = 0;
+					for (int j = 0; j < config_.E; j++)
+					{
+						if (i != j) data_cache[set_index].value[j]++;
+					}					
+					block_index = i;
+					break;
+				}
+			}
+			// ???
+			// Write to data_cache[set_index].data_set[block_index].data_block[block_offset]
+
+			// Write dirty bit;
+			if (config_.write_through == 0 && config_.write_allocate == 0)
+			{				
+				data_cache[set_index].data_set[block_index].dirty[block_offset] = true;
+			}
+		}
+		// Write to memory
+		if (config_.write_through == 1)
+		{
+			// ???
+		}
 	}
 }
 
@@ -111,9 +158,9 @@ void Cache::PartitionAlgorithm(uint64_t addr, uint64_t& tag,
 	block_offset = addr&(1 << (config_.b) - 1);
 }
 
-// return true means the cache have to replace some blocks.
+// return true means the cache miss.
 int Cache::ReplaceDecision(uint64_t tag, uint64_t set_index)
-{
+{	
 	for (int i = 0; i < config_.E; i++)
 	{
 		if (data_cache[set_index].data_set[i].tag == tag)
@@ -132,24 +179,38 @@ int Cache::ReplaceDecision(uint64_t tag, uint64_t set_index)
 
 void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index)
 {
-	int out_index = 0;  // replace data_cache[set_index].data_set[out_index]
+	int out_index = -1;  // replace data_cache[set_index].data_set[out_index]
 	for (int i = 0; i < config_.E; i++)
 	{
-		if (data_cache[set_index].data_set[i].valid > data_cache[set_index].data_set[out_index].valid)
+		if (data_cache[set_index].data_set[i].valid == false) out_index = i;
+	}
+	if (out_index == -1)
+	{
+		for (int i = 0; i < config_.E; i++)
 		{
-			out_index = i;
+			if (data_cache[set_index].data_set[i].valid > data_cache[set_index].data_set[out_index].valid)
+			{
+				out_index = i;
+			}
 		}
 	}
 	// Dirty && Write_back 
-	if (data_cache[set_index].data_set[out_index].dirty == true && config_.write_through == 0)
+	for (int i = 0; i < config_.B; i++)
 	{
-		// ???
-		// Write block's data back into memory
+		if (data_cache[set_index].data_set[out_index].dirty[i] == true 
+			&& config_.write_through == 0)
+		{
+			// ???
+			// Write block's data[i] back into memory
+		}
 	}
 	// Write a new block into cache
-	data_cache[set_index].data_set[out_index].dirty = false;
+	for (int i = 0; i < config_.B; i++)
+	{
+		data_cache[set_index].data_set[out_index].dirty[i] = false;
+	}
 	data_cache[set_index].data_set[out_index].tag = tag;
-	data_cache[set_index].data_set[out_index].valid = false;
+	data_cache[set_index].data_set[out_index].valid = true;
 	// ???
 	// Fresh data_cache[set_index].data_set[out_index].data_block;
 
