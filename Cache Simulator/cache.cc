@@ -71,6 +71,7 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 			// Miss?
 			if (ReplaceDecision(tag, set_index))
 			{
+				hit = 0;
 				// Choose victim
 				ReplaceAlgorithm(tag, set_index);
 			}
@@ -105,11 +106,12 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 		PartitionAlgorithm(addr, tag, set_index, block_offset);
 		// Don't write allocate && write back
 		bool miss = ReplaceDecision(tag, set_index);
+		if (!miss) hit = 1;
 		if (miss && (config_.write_allocate == 1))
-		{		
+		{
 			ReplaceAlgorithm(tag, set_index);  // Load to cache.
 		}
-		if (config_.write_allocate == 1 || 
+		if (config_.write_allocate == 1 ||
 			((!miss) && config_.write_through == 1 && config_.write_allocate == 0))
 		{
 			int block_index;
@@ -122,7 +124,7 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 					for (int j = 0; j < config_.E; j++)
 					{
 						if (i != j) data_cache[set_index].value[j]++;
-					}					
+					}
 					block_index = i;
 					break;
 				}
@@ -132,7 +134,7 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 
 			// Write dirty bit;
 			if (config_.write_through == 0 && config_.write_allocate == 0)
-			{				
+			{
 				data_cache[set_index].data_set[block_index].dirty[block_offset] = true;
 			}
 		}
@@ -153,17 +155,22 @@ int Cache::BypassDecision()
 void Cache::PartitionAlgorithm(uint64_t addr, uint64_t& tag,
 	uint64_t & set_index, uint64_t& block_offset)
 {
-	tag = (addr >> (config_.b + config_.s))&(1 << (config_.e) - 1);
-	set_index = (addr >> config_.b)&(1 << (config_.s) - 1);
-	block_offset = addr&(1 << (config_.b) - 1);
+	tag = (addr >> (config_.b + config_.s))&((1 << (32 - (config_.b + config_.s))) - 1);
+	set_index = (addr >> config_.b)&((1 << (config_.s)) - 1);
+	block_offset = addr&((1 << (config_.b)) - 1);
+
+	printf("Partition Algorithm: tag : %d\n", tag);
+	printf("Partition Algorithm: set_index : %d\n", set_index);
+	printf("Partition Algorithm: block_offset : %d\n", block_offset);
 }
 
 // return true means the cache miss.
 int Cache::ReplaceDecision(uint64_t tag, uint64_t set_index)
-{	
+{
 	for (int i = 0; i < config_.E; i++)
 	{
-		if (data_cache[set_index].data_set[i].tag == tag)
+		if (data_cache[set_index].data_set[i].tag == tag
+			&& data_cache[set_index].data_set[i].valid == true)
 		{
 			data_cache[set_index].value[i] = 0;
 			for (int j = 0; j < config_.E; j++)
@@ -197,7 +204,7 @@ void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index)
 	// Dirty && Write_back 
 	for (int i = 0; i < config_.B; i++)
 	{
-		if (data_cache[set_index].data_set[out_index].dirty[i] == true 
+		if (data_cache[set_index].data_set[out_index].dirty[i] == true
 			&& config_.write_through == 0)
 		{
 			// ???

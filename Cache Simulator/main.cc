@@ -1,11 +1,15 @@
-#include "stdio.h"
+ï»¿#include "stdio.h"
 #include "cache.h"
 #include "memory.h"
 #include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 using namespace std;
-void Ana_trace(Cache &l1)
-{
-	FILE* input;
+bool SF = false;
+
+void Ana_trace(FILE* &input, Cache &l1)
+{	
 	char io_op;
 	uint64_t addr;
 	int read;
@@ -13,23 +17,18 @@ void Ana_trace(Cache &l1)
 	int hit = 0, total_hit = 0;
 	int time = 0, total_time = 0;
 	int total_sum = 0;
-	input = fopen("1.trace", "r");
-	if (input == NULL)
+	
+	while (fscanf(input, "%c\t %d\n", &io_op, &addr) != EOF)
 	{
-		printf("Input trace file not found!\n");
-		return;
-	}
-	while (fscanf(input, "%c\t %lx\n", &io_op, &addr) != EOF)
-	{
-		//cin.get();
+		if (SF) cin.get();  // Stepping
 		printf("*************************************************************************\n");
-		printf("io_op= %c, addr= %lx\n", io_op, addr);
+		printf("io_op= %c, addr= %d\n", io_op, addr);
 		total_sum++;
 		if (io_op == 'w')
 		{
 			read = 0;
 			printf("addr=%lx(%lu). Write.\n", addr, addr);
-			l1.HandleRequest(addr, 1, read, content, hit, time);
+			l1.HandleRequest(addr, 4, read, content, hit, time);
 			printf("Request access time: %dns\n", time);
 			total_hit += hit;
 			total_time += time;
@@ -38,31 +37,114 @@ void Ana_trace(Cache &l1)
 		{
 			read = 1;
 			printf("addr=%lx(%lu). Read.\n", addr, addr);
-			l1.HandleRequest(addr, 1, read, content, hit, time);
+			l1.HandleRequest(addr, 4, read, content, hit, time);
 			printf("Request access time: %dns\n", time);
 			total_hit += hit;
 			total_time += time;
 		}
-
-		printf("*************************************************************************\n");		
+		printf("*************************************************************************\n");
 	}
 	printf("Total hit = %d\n", total_hit);
 	printf("Total num = %d\n", total_sum);
-	printf("Miss Rate= %f\n", (double)(total_hit)/(double)(total_sum));
+	printf("Miss Rate= %f\n", (double)(total_sum-total_hit) / (double)(total_sum));
 	printf("Total time= %dns\n", total_time);
 }
-int main(void)
+int main(int argc, char* argv[])
 {
+	char filename[15] = "./1.trace";
+	FILE* input;
+	CacheConfig_ cc;
+	// Default cache sets.
+	cc.s = 5;
+	cc.e = 3;
+	cc.b = 6;
+	cc.write_through = 0;
+	cc.write_allocate = 1;
+	// Parse the arguments.
+	if (argc != 1)
+	{
+		for (int i = 1; i < argc; i++)
+		{
+			if (strcmp(argv[i], "--help") == 0)
+			{
+				cout << "HELP   :" << endl;
+				cout << "  --name : The excutable file's name. './1.trace' by default." << endl;
+				cout << "           For example, --name=./1.trace" << endl;				
+				cout << "  --s       : Cache has 2^s sets. 5 by default." << endl;
+				cout << "           For example, --s=5" << endl;
+				cout << "  --e       : Cache's each set has 2^e lines. 3 by default." << endl;
+				cout << "           For example, --e=3" << endl;
+				cout << "  --b       : Cache's each block has 2^b 4-bytes. 6 by default." << endl;
+				cout << "           For example, --b=6" << endl;
+				cout << "  --TF     : Write through flag. Write back by default." << endl;
+				cout << "  --BF     : Write back flag. Write back by default." << endl;
+				cout << "  --AF     : Write allocate flag. Write allocate by default." << endl;
+				cout << "  --NF     : Non-Write allocate flag. Write allocate by default." << endl;
+				cout << "  --SF     : Enter stepping flag mode. Not SF Mode by default." << endl;
+				return 0;
+			}
+			else if (strstr(argv[i], "--name=") != NULL)
+			{
+				strcpy(filename, argv[i] + 7);
+			}
+			else if (strstr(argv[i], "--s=") != NULL)
+			{
+				cc.s=atoi(argv[i] + 4);
+				printf("Set s = %d\n", cc.s);
+			}
+			else if (strstr(argv[i], "--e=") != NULL)
+			{
+				cc.e = atoi(argv[i] + 4);
+				printf("Set e = %d\n", cc.e);
+			}
+			else if (strstr(argv[i], "--b=") != NULL)
+			{
+				cc.b = atoi(argv[i] + 4);
+				printf("Set b = %d\n", cc.b);
+			}
+			else if (strcmp(argv[i], "--TF") == 0)
+			{
+				cout << "Write through." << endl;				
+				cc.write_through = 1;
+			}
+			else if (strcmp(argv[i], "--BF") == 0)
+			{
+				cout << "Write back." << endl;
+				cc.write_through = 0;
+			}
+			else if (strcmp(argv[i], "--AF") == 0)
+			{
+				cout << "Write allocate." << endl;
+				cc.write_allocate = 1;
+			}
+			else if (strcmp(argv[i], "--NF") == 0)
+			{
+				cout << "Non-write allocate." << endl;
+				cc.write_allocate = 0;
+			}
+			else if (strcmp(argv[i], "--SF") == 0)
+			{
+				cout << "Stepping flag." << endl;
+				SF = true;
+			}
+			else
+			{
+				cout << "ERROR:  Unknown flags. See --help." << endl;
+				return 0;
+			}
+		}
+	}
+	// Open the file.
+	input = fopen(filename, "r");
+	if (input == NULL)
+	{
+		printf("Input trace file not found!\n");
+		return 0;
+	}
+
 	Memory m;
 	Cache l1;
-	l1.SetLower(&m);
-	CacheConfig_ cc;
-	// ËæÊÖÉèµÄ
-	cc.write_through = 0;
-	cc.write_allocate = 0;
-	cc.b = 4;
-	cc.e = 3;
-	cc.s = 4;
+	l1.SetLower(&m);		
 	l1.SetConfig(cc);
 	l1.BuildCache();
 
@@ -81,28 +163,6 @@ int main(void)
 	ll.hit_latency = 10;
 	l1.SetLatency(ll);
 
-	int hit, time;
-	char content[32];
-	l1.HandleRequest(0, 0, 1, content, hit, time);
-	printf("Request access time: %dns\n", time);
-	l1.HandleRequest(1024, 0, 1, content, hit, time);
-	printf("Request access time: %dns\n", time);
-
-	l1.GetStats(s);
-	printf("Total L1 access time: %dns\n", s.access_time);
-	m.GetStats(s);
-	printf("Total Memory access time: %dns\n", s.access_time);
-
-	l1.HandleRequest(0, 0, 0, content, hit, time);
-	printf("Request access time: %dns\n", time);
-	l1.HandleRequest(1024, 0, 0, content, hit, time);
-	printf("Request access time: %dns\n", time);
-
-	l1.GetStats(s);
-	printf("Total L1 access time: %dns\n", s.access_time);
-	m.GetStats(s);
-	printf("Total Memory access time: %dns\n", s.access_time);
-
-	Ana_trace(l1);
+	Ana_trace(input, l1);
 	return 0;
 }
