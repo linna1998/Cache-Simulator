@@ -19,35 +19,40 @@ void Ana_trace(FILE* &input, Cache &l1)
 	int total_sum = 0;
 	
 	while (fscanf(input, "%c\t %d\n", &io_op, &addr) != EOF)
-	{
-		if (SF) cin.get();  // Stepping
-		printf("*************************************************************************\n");
-		printf("io_op= %c, addr= %d\n", io_op, addr);
+	{		
+		if (SF)
+		{
+			cin.get();  // Stepping			
+			printf("*************************************************************************\n");
+			printf("io_op= %c, addr= %lx(%lu)\n", io_op, addr, addr);
+		}
 		total_sum++;
 		if (io_op == 'w')
 		{
 			read = 0;
-			printf("addr=%lx(%lu). Write.\n", addr, addr);
-			l1.HandleRequest(addr, 4, read, content, hit, time);
-			printf("Request access time: %dns\n", time);
-			total_hit += hit;
-			total_time += time;
 		}
 		else if (io_op == 'r')
 		{
-			read = 1;
-			printf("addr=%lx(%lu). Read.\n", addr, addr);
-			l1.HandleRequest(addr, 4, read, content, hit, time);
-			printf("Request access time: %dns\n", time);
-			total_hit += hit;
-			total_time += time;
+			read = 1;			
 		}
-		printf("*************************************************************************\n");
+		l1.HandleRequest(addr, 4, read, content, hit, time);		
+		total_hit += hit;
+		total_time += time;
+		if (SF)
+		{
+			printf("Request access time: %dns\n", time);
+			printf("Cache.\n");
+			l1.PrintCache();
+			printf("*************************************************************************\n");
+		}
 	}
 	printf("Total hit = %d\n", total_hit);
 	printf("Total num = %d\n", total_sum);
 	printf("Miss Rate= %f\n", (double)(total_sum-total_hit) / (double)(total_sum));
 	printf("Total time= %dns\n", total_time);
+	StorageStats_ ss;
+	l1.GetStats(ss);
+	printf("Total replacement = %d\n", ss.replace_num);
 }
 int main(int argc, char* argv[])
 {
@@ -70,17 +75,17 @@ int main(int argc, char* argv[])
 				cout << "HELP   :" << endl;
 				cout << "  --name : The excutable file's name. './1.trace' by default." << endl;
 				cout << "           For example, --name=./1.trace" << endl;				
-				cout << "  --s       : Cache has 2^s sets. 5 by default." << endl;
+				cout << "  --s    : Cache has 2^s sets. 5 by default." << endl;
 				cout << "           For example, --s=5" << endl;
-				cout << "  --e       : Cache's each set has 2^e lines. 3 by default." << endl;
+				cout << "  --e    : Cache's each set has 2^e lines. 3 by default." << endl;
 				cout << "           For example, --e=3" << endl;
-				cout << "  --b       : Cache's each block has 2^b 4-bytes. 6 by default." << endl;
+				cout << "  --b    : Cache's each block has 2^b 4-bytes. 6 by default." << endl;
 				cout << "           For example, --b=6" << endl;
-				cout << "  --TF     : Write through flag. Write back by default." << endl;
-				cout << "  --BF     : Write back flag. Write back by default." << endl;
-				cout << "  --AF     : Write allocate flag. Write allocate by default." << endl;
-				cout << "  --NF     : Non-Write allocate flag. Write allocate by default." << endl;
-				cout << "  --SF     : Enter stepping flag mode. Not SF Mode by default." << endl;
+				cout << "  --TF   : Write through flag. Write back by default." << endl;
+				cout << "  --BF   : Write back flag. Write back by default." << endl;
+				cout << "  --AF   : Write allocate flag. Write allocate by default." << endl;
+				cout << "  --NF   : Non-Write allocate flag. Write allocate by default." << endl;
+				cout << "  --SF   : Enter stepping flag mode. Not SF Mode by default." << endl;
 				return 0;
 			}
 			else if (strstr(argv[i], "--name=") != NULL)

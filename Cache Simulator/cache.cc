@@ -51,10 +51,32 @@ void Cache::BuildCache()
 	}
 }
 
+void Cache::PrintCache()
+{
+	printf("S= %d, E= %d, B= %d\n", config_.S, config_.E, config_.B);
+	printf("All the tag values.\n");
+	for (int i = 0; i < config_.S; i++)
+	{
+		printf("[%3x]", i);
+		for (int j = 0; j < config_.E; j++)
+		{			
+			if (data_cache[i].data_set[j].valid == true)
+			{				
+				//printf("cache[%d][%d]: tag = %x(%u) valid= %d\n", i, j,
+				//	data_cache[i].data_set[j].tag, data_cache[i].data_set[j].tag, 
+				//	data_cache[i].data_set[j].valid);		
+				printf("%5x ", data_cache[i].data_set[j].tag);
+			}
+			else printf("%5d", -1);
+		}
+		printf("\n");
+	}
+}
+
 // ??? read == 1 : read?
 void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 	char *content, int &hit, int &time)
-{
+{	
 	hit = 0;
 	time = 0;
 	uint64_t tag;
@@ -74,10 +96,13 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 				hit = 0;
 				// Choose victim
 				ReplaceAlgorithm(tag, set_index);
+				stats_.replace_num++;
 			}
 			else
 			{
 				// return hit & time
+				//PrintCache();
+				//printf("READ HIT!\n");
 				hit = 1;
 				time += latency_.bus_latency + latency_.hit_latency;
 				stats_.access_time += time;
@@ -105,16 +130,22 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 	{
 		PartitionAlgorithm(addr, tag, set_index, block_offset);
 		// Don't write allocate && write back
-		bool miss = ReplaceDecision(tag, set_index);
-		if (!miss) hit = 1;
+		bool miss = ReplaceDecision(tag, set_index);		
+		if (!miss)
+		{
+			hit = 1;
+			// PrintCache();
+			// printf("WRITE HIT!\n");			
+		}		
 		if (miss && (config_.write_allocate == 1))
 		{
 			ReplaceAlgorithm(tag, set_index);  // Load to cache.
-		}
+			stats_.replace_num++;
+		}		
 		if (config_.write_allocate == 1 ||
 			((!miss) && config_.write_through == 1 && config_.write_allocate == 0))
 		{
-			int block_index;
+			uint64_t block_index;
 			// Write to cache, data_cache[set_index].data_set[block_index]
 			for (int i = 0; i < config_.E; i++)
 			{
@@ -128,22 +159,30 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 					block_index = i;
 					break;
 				}
-			}
+			}			
 			// ???
 			// Write to data_cache[set_index].data_set[block_index].data_block[block_offset]
+			time += latency_.bus_latency + latency_.hit_latency;
+			stats_.access_time += time;
 
 			// Write dirty bit;
 			if (config_.write_through == 0 && config_.write_allocate == 0)
 			{
 				data_cache[set_index].data_set[block_index].dirty[block_offset] = true;
 			}
-		}
+		}		
 		// Write to memory
 		if (config_.write_through == 1)
 		{
-			// ???
-		}
+			int lower_hit, lower_time;
+			lower_->HandleRequest(addr, bytes, read, content,
+				lower_hit, lower_time);			
+			time += latency_.bus_latency + lower_time;
+			stats_.access_time += latency_.bus_latency;
+		}		
 	}
+	stats_.access_counter++;
+	stats_.miss_num += (1 - hit);	
 }
 
 int Cache::BypassDecision()
@@ -155,13 +194,18 @@ int Cache::BypassDecision()
 void Cache::PartitionAlgorithm(uint64_t addr, uint64_t& tag,
 	uint64_t & set_index, uint64_t& block_offset)
 {
-	tag = (addr >> (config_.b + config_.s))&((1 << (32 - (config_.b + config_.s))) - 1);
+	tag = (addr >> (config_.b + config_.s))&
+		((1 << (32 - (config_.b + config_.s))) - 1);
 	set_index = (addr >> config_.b)&((1 << (config_.s)) - 1);
 	block_offset = addr&((1 << (config_.b)) - 1);
-
-	printf("Partition Algorithm: tag : %d\n", tag);
-	printf("Partition Algorithm: set_index : %d\n", set_index);
-	printf("Partition Algorithm: block_offset : %d\n", block_offset);
+	
+	/*
+	printf("Partition Algorithm: tag : %lx(%lu)\n", tag, tag);
+	printf("Partition Algorithm: set_index : %lx(%lu)\n", set_index, set_index);
+	printf("Partition Algorithm: block_offset : %lx(%lu)\n",
+		block_offset, block_offset);
+		*/
+		
 }
 
 // return true means the cache miss.
@@ -193,14 +237,16 @@ void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index)
 	}
 	if (out_index == -1)
 	{
+		out_index = 0;
 		for (int i = 0; i < config_.E; i++)
 		{
-			if (data_cache[set_index].data_set[i].valid > data_cache[set_index].data_set[out_index].valid)
+			if (data_cache[set_index].data_set[i].valid > 
+				data_cache[set_index].data_set[out_index].valid)
 			{
 				out_index = i;
 			}
 		}
-	}
+	}	
 	// Dirty && Write_back 
 	for (int i = 0; i < config_.B; i++)
 	{

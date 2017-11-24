@@ -49,6 +49,7 @@ class Cache: public Storage
   // Set lower storage level.
   void SetLower(Storage *ll) { lower_ = ll; }
   void BuildCache();
+  void PrintCache();
   // Main access process
   void HandleRequest(uint64_t addr, int bytes, int read,
                      char *content, int &hit, int &time);
