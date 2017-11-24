@@ -54,6 +54,7 @@ void Ana_trace(FILE* &input, Cache &l1)
 	l1.GetStats(ss);
 	printf("Total replacement = %d\n", ss.replace_num);
 }
+
 int main(int argc, char* argv[])
 {
 	char filename[15] = "./1.trace";
@@ -159,13 +160,16 @@ int main(int argc, char* argv[])
 	l1.SetStats(s);
 
 	StorageLatency ml;
-	ml.bus_latency = 6;
-	ml.hit_latency = 100;
+	// ml.bus_latency = 6;
+	// ml.hit_latency = 100;
+	ml.hit_latency = 50;
 	m.SetLatency(ml);
 
 	StorageLatency ll;
-	ll.bus_latency = 3;
-	ll.hit_latency = 10;
+	// ll.bus_latency = 3;
+	// ll.hit_latency = 10;
+	ll.bus_latency = 0;
+	ll.hit_latency = 0;
 	l1.SetLatency(ll);
 
 	Ana_trace(input, l1);

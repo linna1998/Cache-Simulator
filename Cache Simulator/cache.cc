@@ -73,7 +73,6 @@ void Cache::PrintCache()
 	}
 }
 
-// ??? read == 1 : read?
 void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 	char *content, int &hit, int &time)
 {	
