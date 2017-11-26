@@ -54,7 +54,7 @@ void Cache::BuildCache()
 void Cache::PrintCache()
 {
 	printf("S= %d, E= %d, B= %d\n", config_.S, config_.E, config_.B);
-	printf("All the values.\n");
+	printf("All the tag values.\n");
 	for (int i = 0; i < config_.S; i++)
 	{
 		printf("[%3x]", i);
@@ -65,13 +65,13 @@ void Cache::PrintCache()
 				//printf("cache[%d][%d]: tag = %x(%u) valid= %d\n", i, j,
 				//	data_cache[i].data_set[j].tag, data_cache[i].data_set[j].tag, 
 				//	data_cache[i].data_set[j].valid);		
-				//printf("%5x ", data_cache[i].data_set[j].tag);
-				printf("%5x ", data_cache[i].value[j]);
+				printf("%5x ", data_cache[i].data_set[j].tag);
+				//printf("%5x ", data_cache[i].value[j]);
 			}
 			else
 			{
-				//printf("%5d", -1);
-				printf("%5d ", -1);
+				printf("%5d", -1);
+				//printf("%5d ", -1);
 			}
 		}
 		printf("\n");
@@ -163,15 +163,15 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 			if (!miss)
 			{
 				// Fresh LRU
-				printf("Write HIT! Fresh LRU\n");
+				//printf("Write HIT! Fresh LRU\n");
 				data_cache[set_index].value[block_index] = 0;
 				for (int i = 0; i < config_.E; i++)
 				{
 					if (i != block_index && data_cache[set_index].data_set[i].valid == true)
 					{
-						printf("[%d]: old value %d ", i, data_cache[set_index].value[i]);
+						//printf("[%d]: old value %d ", i, data_cache[set_index].value[i]);
 						data_cache[set_index].value[i]++;
-						printf("new value %d \n", data_cache[set_index].value[i]);
+						//printf("new value %d \n", data_cache[set_index].value[i]);
 					}
 				}
 			}
