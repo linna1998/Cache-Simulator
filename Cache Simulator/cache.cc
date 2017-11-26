@@ -87,6 +87,8 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 	uint64_t set_index;
 	uint64_t block_offset;
 
+	stats_.access_counter++;
+
 	// Read.
 	if (read == 1)
 	{
@@ -100,7 +102,6 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 				hit = 0;
 				// Choose victim
 				ReplaceAlgorithm(tag, set_index, stats_);
-
 			}
 			else
 			{
@@ -126,7 +127,8 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 				lower_hit, lower_time);
 			hit = 0;
 			time += latency_.bus_latency + lower_time;
-			stats_.access_time += latency_.bus_latency;
+			// stats_.access_time += latency_.bus_latency;
+			stats_.access_time += time;
 		}
 	}
 	// Write
@@ -193,10 +195,10 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 			lower_->HandleRequest(addr, bytes, read, content,
 				lower_hit, lower_time);
 			time += latency_.bus_latency + lower_time;
-			stats_.access_time += latency_.bus_latency;
+			// stats_.access_time += latency_.bus_latency;
+			stats_.access_time += time;
 		}
 	}
-	stats_.access_counter++;
 	stats_.miss_num += (1 - hit);
 }
 

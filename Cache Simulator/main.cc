@@ -9,49 +9,47 @@ using namespace std;
 bool SF = false;
 
 void Ana_trace(FILE* &input, Cache &l1)
-{	
+{
 	char io_op;
 	uint64_t addr;
 	int read;
 	char content[32];
-	int hit = 0, total_hit = 0;
-	int time = 0, total_time = 0;
-	int total_sum = 0;
-	
+	int hit = 0, time = 0;
+
 	while (fscanf(input, "%c\t %d\n", &io_op, &addr) != EOF)
-	{		
+	{
 		if (SF)
 		{
 			cin.get();  // Stepping			
 			printf("*************************************************************************\n");
 			printf("io_op= %c, addr= %lx(%lu)\n", io_op, addr, addr);
 		}
-		total_sum++;
 		if (io_op == 'w')
 		{
 			read = 0;
 		}
 		else if (io_op == 'r')
 		{
-			read = 1;			
+			read = 1;
 		}
-		l1.HandleRequest(addr, 4, read, content, hit, time);		
-		total_hit += hit;
-		total_time += time;
+		addr >>= 2;
+		l1.HandleRequest(addr, 4, read, content, hit, time);
 		if (SF)
 		{
-			printf("Request access time: %dns\n", time);
+			printf("Request access time: %d ns\n", time);
 			printf("Cache.\n");
 			l1.PrintCache();
 			printf("*************************************************************************\n");
 		}
 	}
-	printf("Total hit = %d\n", total_hit);
-	printf("Total num = %d\n", total_sum);
-	printf("Miss Rate= %f\n", (double)(total_sum-total_hit) / (double)(total_sum));
-	printf("Total time= %dns\n", total_time);
 	StorageStats_ ss;
 	l1.GetStats(ss);
+	printf("Total hit = %d\n", ss.access_counter - ss.miss_num);
+	printf("Total num = %d\n", ss.access_counter);
+	printf("Miss Rate= %f\n", (double)(ss.miss_num) / (double)(ss.access_counter));
+	//printf("Miss Rate= %f\n", (double)(total_sum - total_hit) / (double)(total_sum));
+	printf("Total time= %dns\n", ss.access_time);
+	//printf("Total time= %dns\n", total_time);
 	printf("Total replacement = %d\n", ss.replace_num);
 }
 
@@ -75,7 +73,7 @@ int main(int argc, char* argv[])
 			{
 				cout << "HELP   :" << endl;
 				cout << "  --name : The excutable file's name. './1.trace' by default." << endl;
-				cout << "           For example, --name=./1.trace" << endl;				
+				cout << "           For example, --name=./1.trace" << endl;
 				cout << "  --s    : Cache has 2^s sets. 5 by default." << endl;
 				cout << "           For example, --s=5" << endl;
 				cout << "  --e    : Cache's each set has 2^e lines. 3 by default." << endl;
@@ -95,7 +93,7 @@ int main(int argc, char* argv[])
 			}
 			else if (strstr(argv[i], "--s=") != NULL)
 			{
-				cc.s=atoi(argv[i] + 4);
+				cc.s = atoi(argv[i] + 4);
 				printf("Set s = %d\n", cc.s);
 			}
 			else if (strstr(argv[i], "--e=") != NULL)
@@ -110,7 +108,7 @@ int main(int argc, char* argv[])
 			}
 			else if (strcmp(argv[i], "--TF") == 0)
 			{
-				cout << "Write through." << endl;				
+				cout << "Write through." << endl;
 				cc.write_through = 1;
 			}
 			else if (strcmp(argv[i], "--BF") == 0)
@@ -150,7 +148,7 @@ int main(int argc, char* argv[])
 
 	Memory m;
 	Cache l1;
-	l1.SetLower(&m);		
+	l1.SetLower(&m);
 	l1.SetConfig(cc);
 	l1.BuildCache();
 
