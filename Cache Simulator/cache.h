@@ -62,7 +62,7 @@ class Cache: public Storage
 	  uint64_t & set_index, uint64_t& block_offset);
   // Replacement
   int ReplaceDecision(uint64_t tag, uint64_t set_index);
-  void ReplaceAlgorithm(uint64_t tag, uint64_t set_index);
+  void ReplaceAlgorithm(uint64_t tag, uint64_t set_index, StorageStats & stats_);
   // Prefetching
   int PrefetchDecision();
   void PrefetchAlgorithm();

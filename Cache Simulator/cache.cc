@@ -54,20 +54,25 @@ void Cache::BuildCache()
 void Cache::PrintCache()
 {
 	printf("S= %d, E= %d, B= %d\n", config_.S, config_.E, config_.B);
-	printf("All the tag values.\n");
+	printf("All the values.\n");
 	for (int i = 0; i < config_.S; i++)
 	{
 		printf("[%3x]", i);
 		for (int j = 0; j < config_.E; j++)
-		{			
+		{
 			if (data_cache[i].data_set[j].valid == true)
-			{				
+			{
 				//printf("cache[%d][%d]: tag = %x(%u) valid= %d\n", i, j,
 				//	data_cache[i].data_set[j].tag, data_cache[i].data_set[j].tag, 
 				//	data_cache[i].data_set[j].valid);		
-				printf("%5x ", data_cache[i].data_set[j].tag);
+				//printf("%5x ", data_cache[i].data_set[j].tag);
+				printf("%5x ", data_cache[i].value[j]);
 			}
-			else printf("%5d", -1);
+			else
+			{
+				//printf("%5d", -1);
+				printf("%5d ", -1);
+			}
 		}
 		printf("\n");
 	}
@@ -75,7 +80,7 @@ void Cache::PrintCache()
 
 void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 	char *content, int &hit, int &time)
-{	
+{
 	hit = 0;
 	time = 0;
 	uint64_t tag;
@@ -94,8 +99,8 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 			{
 				hit = 0;
 				// Choose victim
-				ReplaceAlgorithm(tag, set_index);
-				stats_.replace_num++;
+				ReplaceAlgorithm(tag, set_index, stats_);
+
 			}
 			else
 			{
@@ -129,36 +134,47 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 	{
 		PartitionAlgorithm(addr, tag, set_index, block_offset);
 		// Don't write allocate && write back
-		bool miss = ReplaceDecision(tag, set_index);		
+		bool miss = ReplaceDecision(tag, set_index);
 		if (!miss)
 		{
 			hit = 1;
 			// PrintCache();
 			// printf("WRITE HIT!\n");			
-		}		
+		}
 		if (miss && (config_.write_allocate == 1))
 		{
-			ReplaceAlgorithm(tag, set_index);  // Load to cache.
-			stats_.replace_num++;
-		}		
-		if (config_.write_allocate == 1 ||
+			ReplaceAlgorithm(tag, set_index, stats_);  // Load to cache.
+			// LRU freshed in Replace Algorithm.
+		}
+		if (config_.write_allocate == 1  ||
 			((!miss) && config_.write_through == 1 && config_.write_allocate == 0))
-		{
-			uint64_t block_index;
+		{			
 			// Write to cache, data_cache[set_index].data_set[block_index]
+			// Find block index.
+			uint64_t block_index;
 			for (int i = 0; i < config_.E; i++)
 			{
 				if (data_cache[set_index].data_set[i].tag == tag)
 				{
-					data_cache[set_index].value[i] = 0;
-					for (int j = 0; j < config_.E; j++)
-					{
-						if (i != j) data_cache[set_index].value[j]++;
-					}
 					block_index = i;
 					break;
 				}
-			}			
+			}
+			if (!miss)
+			{
+				// Fresh LRU
+				printf("Write HIT! Fresh LRU\n");
+				data_cache[set_index].value[block_index] = 0;
+				for (int i = 0; i < config_.E; i++)
+				{
+					if (i != block_index && data_cache[set_index].data_set[i].valid == true)
+					{
+						printf("[%d]: old value %d ", i, data_cache[set_index].value[i]);
+						data_cache[set_index].value[i]++;
+						printf("new value %d \n", data_cache[set_index].value[i]);
+					}
+				}
+			}
 			// ???
 			// Write to data_cache[set_index].data_set[block_index].data_block[block_offset]
 			time += latency_.bus_latency + latency_.hit_latency;
@@ -169,19 +185,19 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 			{
 				data_cache[set_index].data_set[block_index].dirty[block_offset] = true;
 			}
-		}		
+		}
 		// Write to memory
 		if (config_.write_through == 1)
 		{
 			int lower_hit, lower_time;
 			lower_->HandleRequest(addr, bytes, read, content,
-				lower_hit, lower_time);			
+				lower_hit, lower_time);
 			time += latency_.bus_latency + lower_time;
 			stats_.access_time += latency_.bus_latency;
-		}		
+		}
 	}
 	stats_.access_counter++;
-	stats_.miss_num += (1 - hit);	
+	stats_.miss_num += (1 - hit);
 }
 
 int Cache::BypassDecision()
@@ -197,14 +213,14 @@ void Cache::PartitionAlgorithm(uint64_t addr, uint64_t& tag,
 		((1 << (32 - (config_.b + config_.s))) - 1);
 	set_index = (addr >> config_.b)&((1 << (config_.s)) - 1);
 	block_offset = addr&((1 << (config_.b)) - 1);
-	
+
 	/*
 	printf("Partition Algorithm: tag : %lx(%lu)\n", tag, tag);
 	printf("Partition Algorithm: set_index : %lx(%lu)\n", set_index, set_index);
 	printf("Partition Algorithm: block_offset : %lx(%lu)\n",
 		block_offset, block_offset);
 		*/
-		
+
 }
 
 // return true means the cache miss.
@@ -215,11 +231,6 @@ int Cache::ReplaceDecision(uint64_t tag, uint64_t set_index)
 		if (data_cache[set_index].data_set[i].tag == tag
 			&& data_cache[set_index].data_set[i].valid == true)
 		{
-			data_cache[set_index].value[i] = 0;
-			for (int j = 0; j < config_.E; j++)
-			{
-				if (i != j) data_cache[set_index].value[j]++;
-			}
 			return FALSE;
 		}
 	}
@@ -227,7 +238,7 @@ int Cache::ReplaceDecision(uint64_t tag, uint64_t set_index)
 	//return FALSE;
 }
 
-void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index)
+void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index, StorageStats & stats_)
 {
 	int out_index = -1;  // replace data_cache[set_index].data_set[out_index]
 	for (int i = 0; i < config_.E; i++)
@@ -236,16 +247,19 @@ void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index)
 	}
 	if (out_index == -1)
 	{
-		out_index = 0;
+		stats_.replace_num++;  // Need to replace some blocks.
+		out_index = 0;  // If not, cause segmentation fault.
 		for (int i = 0; i < config_.E; i++)
 		{
-			if (data_cache[set_index].data_set[i].valid > 
-				data_cache[set_index].data_set[out_index].valid)
+			//if (data_cache[set_index].data_set[i].valid >
+			//	data_cache[set_index].data_set[out_index].valid)
+			if (data_cache[set_index].value[i] >
+					data_cache[set_index].value[out_index])
 			{
 				out_index = i;
 			}
 		}
-	}	
+	}
 	// Dirty && Write_back 
 	for (int i = 0; i < config_.B; i++)
 	{
@@ -267,10 +281,12 @@ void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index)
 	// Fresh data_cache[set_index].data_set[out_index].data_block;
 
 	// fresh the LRU value
+	//printf("Fresh LRU in ReplaceAlgorithm.\n");
 	data_cache[set_index].value[out_index] = 0;
 	for (int i = 0; i < config_.E; i++)
 	{
-		if (i != out_index) data_cache[set_index].value[i]++;
+		if (i != out_index && data_cache[set_index].data_set[i].valid==true) 
+			data_cache[set_index].value[i]++;
 	}
 }
 
