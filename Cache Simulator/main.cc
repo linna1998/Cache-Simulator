@@ -8,15 +8,14 @@
 using namespace std;
 bool SF = false;
 
-void Ana_trace(FILE* &input, Cache &l1)
+void Ana_trace(FILE* &input, Cache &l1, int &total_hit, int &total_time)
 {
 	char io_op;
 	char c_addr[20];
 	uint64_t addr;
 	int read;
 	char content[32];
-	int hit = 0, time = 0;	
-	int total_hit = 0, total_time = 0;
+	int hit = 0, time = 0;		
 	for (int i = 0; i < 20; i++)
 		c_addr[i] = '\0';
 
@@ -55,12 +54,6 @@ void Ana_trace(FILE* &input, Cache &l1)
 		total_hit += hit;
 		total_time += time;
 
-		// DEBUG
-		if (hit == 0)
-		{
-			printf("L1 MISS ! io_op= %c, addr= %lx(%lu)\n", io_op, addr, addr);
-		}
-
 		if (SF)
 		{
 			printf("Hit: %d\n", hit);
@@ -91,6 +84,7 @@ void Ana_trace(FILE* &input, Cache &l1)
 	printf("Replacement = %d\n", ss.replace_num);
 	printf("Fetch num = %d\n", ss.fetch_num);
 	printf("\n");
+
 	printf("Total: \n");
 	printf("Hit = %d\n", total_hit);
 	printf("Time= %d cycles\n", total_time);
@@ -131,14 +125,7 @@ int main(int argc, char* argv[])
 				return 0;
 			}
 		}
-	}
-	// Open the file.
-	input = fopen(filename, "r");
-	if (input == NULL)
-	{
-		printf("Input trace file not found!\n");
-		return 0;
-	}
+	}	
 
 	// Set cache.
 	CacheConfig_ cc1, cc2;
@@ -182,8 +169,19 @@ int main(int argc, char* argv[])
 	ll2.hit_latency = 4;
 	l2.SetLatency(ll2);
 
-	
-	Ana_trace(input, l1);
-	
+	int total_hit = 0, total_time = 0;
+	for (int i = 1; i <= 7; i++)
+	{
+		// Open the file.
+		input = fopen(filename, "r");
+		if (input == NULL)
+		{
+			printf("Input trace file not found!\n");
+			return 0;
+		}
+		printf("******************************************************\n");
+		printf("Analyze trace %d times\n", i);
+		Ana_trace(input, l1, total_hit, total_time);
+	}
 	return 0;
 }
