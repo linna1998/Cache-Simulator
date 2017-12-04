@@ -15,13 +15,13 @@ void Ana_trace(FILE* &input, Cache &l1)
 	uint64_t addr;
 	int read;
 	char content[32];
-	int hit = 0, time = 0;
-	
+	int hit = 0, time = 0;	
+	int total_hit = 0, total_time = 0;
 	for (int i = 0; i < 20; i++)
 		c_addr[i] = '\0';
 
-	while (fscanf(input, "%c\t %s\n", &io_op, &c_addr) != EOF)
-	{
+	while (fscanf(input, "%c\t %s\n", &io_op, &c_addr) != EOF)	
+	{		
 		// Read in the addr in hex style
 		addr = 0;
 		int pointer = 2;
@@ -35,7 +35,7 @@ void Ana_trace(FILE* &input, Cache &l1)
 		}
 		for (int i = 0; i < 20; i++)
 			c_addr[i] = '\0';
-
+		
 		if (SF)
 		{
 			cin.get();  // Stepping			
@@ -51,27 +51,56 @@ void Ana_trace(FILE* &input, Cache &l1)
 			read = 1;
 		}
 		addr >>= 2;
-		l1.HandleRequest(addr, 4, read, content, hit, time);
+		l1.HandleRequest(addr, 4, read, content, hit, time);		
+		total_hit += hit;
+		total_time += time;
+
+		// DEBUG
+		if (hit == 0)
+		{
+			printf("L1 MISS ! io_op= %c, addr= %lx(%lu)\n", io_op, addr, addr);
+		}
+
 		if (SF)
 		{
-			printf("Request access time: %d ns\n", time);
-			printf("Cache.\n");
-			l1.PrintCache();
-			printf("*************************************************************************\n");
+			printf("Hit: %d\n", hit);
+			printf("Access time: %d cycles\n", time);
+			// printf("L1 Cache.\n");
+			// l1.PrintCache();
+			// printf("*************************************************************************\n");
 		}
 	}
 	StorageStats_ ss;
 	l1.GetStats(ss);
-	printf("Total hit = %d\n", ss.access_counter - ss.miss_num);
-	printf("Total num = %d\n", ss.access_counter);
+	printf("L1 Cache: \n");
+	printf("Hit = %d\n", ss.access_counter - ss.miss_num);
+	printf("Num = %d\n", ss.access_counter);
 	printf("Miss Rate= %f\n", (double)(ss.miss_num) / (double)(ss.access_counter));
-	printf("Total time= %d cycles\n", ss.access_time);
-	printf("Total replacement = %d\n", ss.replace_num);
+	printf("Time= %d cycles\n", ss.access_time);
+	printf("Replacement = %d\n", ss.replace_num);
+	printf("Fetch num = %d\n", ss.fetch_num);	
+	printf("\n");
+	Storage * ll;
+	l1.GetLower(ll);
+	ll->GetStats(ss);
+	printf("L2 Cache: \n");
+	printf("Hit = %d\n", ss.access_counter - ss.miss_num);
+	printf("Num = %d\n", ss.access_counter);
+	printf("Miss Rate= %f\n", (double)(ss.miss_num) / (double)(ss.access_counter));
+	printf("Time= %d cycles\n", ss.access_time);
+	printf("Replacement = %d\n", ss.replace_num);
+	printf("Fetch num = %d\n", ss.fetch_num);
+	printf("\n");
+	printf("Total: \n");
+	printf("Hit = %d\n", total_hit);
+	printf("Time= %d cycles\n", total_time);
+	l1.GetStats(ss);
+	printf("AMAT = %f \n", (double)total_time/(double)ss.access_counter);
 }
 
 int main(int argc, char* argv[])
 {
-	char filename[15] = "./1.trace";
+	char filename[15] = "./2.trace";
 	FILE* input;
 
 	// Parse the arguments.
@@ -82,8 +111,8 @@ int main(int argc, char* argv[])
 			if (strcmp(argv[i], "--help") == 0)
 			{
 				cout << "HELP   :" << endl;
-				cout << "  --name : The excutable file's name. './1.trace' by default." << endl;
-				cout << "           For example, --name=./1.trace" << endl;
+				cout << "  --name : The excutable file's name. './2.trace' by default." << endl;
+				cout << "           For example, --name=./2.trace" << endl;
 				cout << "  --SF   : Enter stepping flag mode. Not SF Mode by default." << endl;
 				return 0;
 			}
@@ -153,6 +182,8 @@ int main(int argc, char* argv[])
 	ll2.hit_latency = 4;
 	l2.SetLatency(ll2);
 
+	
 	Ana_trace(input, l1);
+	
 	return 0;
 }

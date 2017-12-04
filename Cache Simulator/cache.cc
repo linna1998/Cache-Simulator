@@ -95,22 +95,24 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 		// Bypass?
 		if (!BypassDecision())
 		{
+			// 除了bypass，无论如何都会有hit latency		
+			time += latency_.bus_latency + latency_.hit_latency;
+			stats_.access_time += latency_.bus_latency + latency_.hit_latency;
+
 			PartitionAlgorithm(addr, tag, set_index, block_offset);
 			// Miss?
-			if (ReplaceDecision(tag, set_index))
+			if (ReplaceDecision(tag, set_index, read))
 			{
-				hit = 0;
+				stats_.miss_num++;
 				// Choose victim
-				ReplaceAlgorithm(tag, set_index, stats_);
+				ReplaceAlgorithm(tag, set_index, stats_, time);
 			}
 			else
 			{
-				// return hit & time
+				// return hit & time, Read hit cache
 				//PrintCache();
 				//printf("READ HIT!\n");
 				hit = 1;
-				time += latency_.bus_latency + latency_.hit_latency;
-				stats_.access_time += time;
 				return;
 			}
 		}
@@ -125,32 +127,48 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 			int lower_hit, lower_time;
 			lower_->HandleRequest(addr, bytes, read, content,
 				lower_hit, lower_time);
-			hit = 0;
-			time += latency_.bus_latency + lower_time;
-			// stats_.access_time += latency_.bus_latency;
-			stats_.access_time += time;
+			time += lower_time;
+			stats_.fetch_num++;
 		}
 	}
 	// Write
 	else if (read == 0)
 	{
+		// 除了bypass，无论如何都会有hit latency		
+		time += latency_.bus_latency + latency_.hit_latency;
+		stats_.access_time += latency_.bus_latency + latency_.hit_latency;
+
 		PartitionAlgorithm(addr, tag, set_index, block_offset);
 		// Don't write allocate && write back
-		bool miss = ReplaceDecision(tag, set_index);
+		bool miss = ReplaceDecision(tag, set_index, read);
 		if (!miss)
 		{
 			hit = 1;
 			// PrintCache();
 			// printf("WRITE HIT!\n");			
 		}
+		else
+		{
+			hit = 0;
+			stats_.miss_num++;
+		}
 		if (miss && (config_.write_allocate == 1))
 		{
-			ReplaceAlgorithm(tag, set_index, stats_);  // Load to cache.
+			// Load to cache.	
+			int load_hit, load_time;
+			StorageStats_ old_ss = stats_;
+			HandleRequest(addr, bytes, 1, content,
+				load_hit, load_time);
+			stats_.access_counter = old_ss.access_counter;
+			stats_.miss_num = old_ss.miss_num;			
+			time += load_time;			
+
+			// ReplaceAlgorithm(tag, set_index, stats_, time);  
 			// LRU freshed in Replace Algorithm.
 		}
-		if (config_.write_allocate == 1  ||
+		if (config_.write_allocate == 1 ||
 			((!miss) && config_.write_through == 1 && config_.write_allocate == 0))
-		{			
+		{
 			// Write to cache, data_cache[set_index].data_set[block_index]
 			// Find block index.
 			uint64_t block_index;
@@ -179,27 +197,27 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 			}
 			// ???
 			// Write to data_cache[set_index].data_set[block_index].data_block[block_offset]
-			time += latency_.bus_latency + latency_.hit_latency;
-			stats_.access_time += time;
 
 			// Write dirty bit;
-			if (config_.write_through == 0 && config_.write_allocate == 0)
+			// if (config_.write_through == 0 && config_.write_allocate == 0)
+			if (config_.write_through == 0)
 			{
 				data_cache[set_index].data_set[block_index].dirty[block_offset] = true;
+				// DEBUG
+				// printf("write dirty bit\n");
 			}
 		}
-		// Write to memory
+
+		// Write to lower layer
 		if (config_.write_through == 1)
 		{
 			int lower_hit, lower_time;
 			lower_->HandleRequest(addr, bytes, read, content,
 				lower_hit, lower_time);
-			time += latency_.bus_latency + lower_time;
-			// stats_.access_time += latency_.bus_latency;
-			stats_.access_time += time;
+			time += lower_time;
+			stats_.fetch_num++;
 		}
 	}
-	stats_.miss_num += (1 - hit);
 }
 
 int Cache::BypassDecision()
@@ -221,26 +239,57 @@ void Cache::PartitionAlgorithm(uint64_t addr, uint64_t& tag,
 	printf("Partition Algorithm: set_index : %lx(%lu)\n", set_index, set_index);
 	printf("Partition Algorithm: block_offset : %lx(%lu)\n",
 		block_offset, block_offset);
-		*/
-
+	*/
+}
+// Merge the addr from the tag, set_index, block_offset.
+void Cache::MergeAlgorithm(uint64_t& addr, uint64_t tag,
+	uint64_t set_index, uint64_t block_offset)
+{
+	addr = 0;
+	addr += block_offset;
+	addr += (set_index << (config_.b));
+	addr += (tag << (config_.b + config_.s));
+	printf("Partition Algorithm: tag : %lx(%lu)\n", tag, tag);
+	printf("Partition Algorithm: set_index : %lx(%lu)\n", set_index, set_index);
+	printf("Partition Algorithm: block_offset : %lx(%lu)\n",
+		block_offset, block_offset);
+	printf("Partition Algorithm: addr : %lx(%lu)\n",
+		addr, addr);
 }
 
 // return true means the cache miss.
-int Cache::ReplaceDecision(uint64_t tag, uint64_t set_index)
+// 在读操作时，要valid才不算miss
+// 在写操作时，block在就不算miss
+int Cache::ReplaceDecision(uint64_t tag, uint64_t set_index, int read)
 {
-	for (int i = 0; i < config_.E; i++)
+	if (read == 1)
 	{
-		if (data_cache[set_index].data_set[i].tag == tag
-			&& data_cache[set_index].data_set[i].valid == true)
+		for (int i = 0; i < config_.E; i++)
 		{
-			return FALSE;
+			if (data_cache[set_index].data_set[i].tag == tag
+				&& data_cache[set_index].data_set[i].valid == true)
+			{
+				return FALSE;
+			}
 		}
+		return TRUE;
 	}
-	return TRUE;
+	else if (read == 0)
+	{
+		for (int i = 0; i < config_.E; i++)
+		{
+			if (data_cache[set_index].data_set[i].tag == tag)
+			{
+				return FALSE;
+			}
+		}
+		return TRUE;
+	}
 	//return FALSE;
 }
 
-void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index, StorageStats & stats_)
+void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index,
+	StorageStats & stats_, int &time)
 {
 	int out_index = -1;  // replace data_cache[set_index].data_set[out_index]
 	for (int i = 0; i < config_.E; i++)
@@ -256,13 +305,13 @@ void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index, StorageStats & st
 			//if (data_cache[set_index].data_set[i].valid >
 			//	data_cache[set_index].data_set[out_index].valid)
 			if (data_cache[set_index].value[i] >
-					data_cache[set_index].value[out_index])
+				data_cache[set_index].value[out_index])
 			{
 				out_index = i;
 			}
 		}
 	}
-	// Dirty && Write_back 
+	// Dirty && Write_back	
 	for (int i = 0; i < config_.B; i++)
 	{
 		if (data_cache[set_index].data_set[out_index].dirty[i] == true
@@ -270,8 +319,21 @@ void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index, StorageStats & st
 		{
 			// ???
 			// Write block's data[i] back into memory
+
+			int lower_hit, lower_time;
+			char content[32];
+			uint64_t addr;
+			MergeAlgorithm(addr, data_cache[set_index].data_set[out_index].tag,
+				set_index, i);
+			lower_->HandleRequest(addr, 4, 0, content,
+				lower_hit, lower_time);
+			time += lower_time;
+			stats_.fetch_num++;
+			// DEBUG
+			printf("write to lower layer in address %d\n", addr);
 		}
 	}
+
 	// Write a new block into cache
 	for (int i = 0; i < config_.B; i++)
 	{
@@ -287,7 +349,7 @@ void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index, StorageStats & st
 	data_cache[set_index].value[out_index] = 0;
 	for (int i = 0; i < config_.E; i++)
 	{
-		if (i != out_index && data_cache[set_index].data_set[i].valid==true) 
+		if (i != out_index && data_cache[set_index].data_set[i].valid == true)
 			data_cache[set_index].value[i]++;
 	}
 }

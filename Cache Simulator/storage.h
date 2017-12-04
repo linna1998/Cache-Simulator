@@ -13,7 +13,9 @@ typedef struct StorageStats_ {
 	int access_counter;
 	int miss_num;
 	int access_time; // In cycles
-	int replace_num; // Evict old lines
+	int replace_num; // Evict old lines. 在ReplaceAlgorithm()里面加
+	// 在lower_->HandleRequest(addr, bytes, read, content, lower_hit, lower_time);
+	// 之后加fetch_num
 	int fetch_num; // Fetch lower layer
 	int prefetch_num; // Prefetch
 } StorageStats;
