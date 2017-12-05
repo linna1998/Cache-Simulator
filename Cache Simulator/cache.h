@@ -69,7 +69,7 @@ private:
 		StorageStats & stats_, int &time);
 	// Prefetching
 	int PrefetchDecision();
-	void PrefetchAlgorithm();
+	void PrefetchAlgorithm(int addr, int &time);
 
 	CacheConfig config_;
 	Storage *lower_;

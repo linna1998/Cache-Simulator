@@ -72,6 +72,7 @@ void Ana_trace(FILE* &input, Cache &l1, int &total_hit, int &total_time)
 	printf("Time= %d cycles\n", ss.access_time);
 	printf("Replacement = %d\n", ss.replace_num);
 	printf("Fetch num = %d\n", ss.fetch_num);	
+	printf("Prefetch num = %d\n", ss.prefetch_num);
 	printf("\n");
 	Storage * ll;
 	l1.GetLower(ll);
@@ -83,6 +84,7 @@ void Ana_trace(FILE* &input, Cache &l1, int &total_hit, int &total_time)
 	printf("Time= %d cycles\n", ss.access_time);
 	printf("Replacement = %d\n", ss.replace_num);
 	printf("Fetch num = %d\n", ss.fetch_num);
+	printf("Prefetch num = %d\n", ss.prefetch_num);
 	printf("\n");
 
 	printf("Total: \n");

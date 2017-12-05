@@ -119,7 +119,7 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 		// Prefetch?
 		if (PrefetchDecision())
 		{
-			PrefetchAlgorithm();
+			PrefetchAlgorithm(addr, time);
 		}
 		else
 		{
@@ -327,10 +327,36 @@ void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index,
 
 int Cache::PrefetchDecision()
 {
-	return FALSE;
+	// return FALSE;
+	return TRUE;
 }
 
-void Cache::PrefetchAlgorithm()
-{
+// 数据预取，一次取4个line，但时间只加一次
+void Cache::PrefetchAlgorithm(int addr, int &time)
+{		
+	char content[32];
+	// Fetch from lower layer
+	int lower_hit, lower_time;
+	int new_addr[4] = { 0 };  // 预取地址
+	new_addr[0]  = addr & (~(3 << config_.b));
+	for (int i = 1; i <= 3; i++)
+	{
+		new_addr[i] = new_addr[i-1] + (1 << config_.b);
+	}
+	for (int i = 0; i < 4; i++)
+	{
+		uint64_t tag, set_index, block_offset;
+		PartitionAlgorithm(new_addr[i], tag, set_index, block_offset);
+		// Miss?
+		if (ReplaceDecision(tag, set_index, 1))
+		{			
+			// Choose victim
+			ReplaceAlgorithm(tag, set_index, stats_, time);
+		}
+		lower_->HandleRequest(new_addr[i], 4, 1, content,
+			lower_hit, lower_time);
+	}
+	time += lower_time;
+	stats_.prefetch_num++;
 }
 
