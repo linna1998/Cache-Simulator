@@ -324,26 +324,50 @@ void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index,
 			data_cache[set_index].value[i]++;
 	}
 }
-
+// PFA=0 means no prefetch algorithm.
+// PFA=1 means next-line prefetch algorithm.
+// PFA=2 means prefetch 2 lines.
+// PFA=3 means prefetch 4 lines.
 int Cache::PrefetchDecision()
-{
-	// return FALSE;
-	return TRUE;
+{	
+	if (PFA == 0) return FALSE;
+	else return TRUE;	
 }
 
-// 数据预取，一次取4个line，但时间只加一次
+// 数据预取，时间只加一次
+// PFA=0 means no prefetch algorithm.
+// PFA=1 means next-line prefetch algorithm.
+// PFA=2 means prefetch 2 lines.
+// PFA=3 means prefetch 4 lines.
 void Cache::PrefetchAlgorithm(int addr, int &time)
-{		
+{
 	char content[32];
 	// Fetch from lower layer
 	int lower_hit, lower_time;
 	int new_addr[4] = { 0 };  // 预取地址
-	new_addr[0]  = addr & (~(3 << config_.b));
-	for (int i = 1; i <= 3; i++)
+	int fetch_lines = 0;  // 预取个数
+	if (PFA == 1 || PFA == 2) fetch_lines = 2;
+	else if (PFA == 3) fetch_lines = 4;
+	if (PFA == 1)
 	{
-		new_addr[i] = new_addr[i-1] + (1 << config_.b);
+		new_addr[0] = addr;
+		new_addr[1] = new_addr[0] + (1 << config_.b);
 	}
-	for (int i = 0; i < 4; i++)
+	else if (PFA == 2)
+	{
+		new_addr[0] = addr & (~(3 << config_.b));
+		new_addr[1] = new_addr[0] + (1 << config_.b);
+	}
+	else if (PFA == 3)
+	{
+		new_addr[0] = addr & (~(3 << config_.b));
+		for (int i = 1; i <= 3; i++)
+		{
+			new_addr[i] = new_addr[i - 1] + (1 << config_.b);
+		}
+	}
+	
+	for (int i = 0; i < fetch_lines; i++)
 	{
 		uint64_t tag, set_index, block_offset;
 		PartitionAlgorithm(new_addr[i], tag, set_index, block_offset);

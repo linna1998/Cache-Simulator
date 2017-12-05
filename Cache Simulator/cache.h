@@ -42,6 +42,7 @@ class Cache : public Storage
 public:
 	Cache() {}
 	~Cache() {}
+	int PFA;  // Prefetch Algorithm. 
 
 	// Sets & Gets
 	void SetConfig(CacheConfig cc);
@@ -74,6 +75,7 @@ private:
 	CacheConfig config_;
 	Storage *lower_;
 	vector<Set> data_cache;
+	
 	DISALLOW_COPY_AND_ASSIGN(Cache);
 };
 

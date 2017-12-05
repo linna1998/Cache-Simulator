@@ -98,7 +98,7 @@ int main(int argc, char* argv[])
 {
 	char filename[15] = "./2.trace";
 	FILE* input;
-
+	int PFA = 1;  // Prefetch Algorithm.
 	// Parse the arguments.
 	if (argc != 1)
 	{
@@ -109,12 +109,31 @@ int main(int argc, char* argv[])
 				cout << "HELP   :" << endl;
 				cout << "  --name : The excutable file's name. './2.trace' by default." << endl;
 				cout << "           For example, --name=./2.trace" << endl;
+				cout << "  --PFA : The prefetch algorithm." << endl;				
+				cout << "           --PFA=0 means no prefetch algorithm." << endl;
+				cout << "           --PFA=1 means next-line prefetch algorithm." << endl;
+				cout << "           --PFA=2 means prefetch 2 lines." << endl;
+				cout << "           --PFA=3 means prefetch 4 lines." << endl;
+				cout << "           Next-line prefetch algorithm by default." << endl;
 				cout << "  --SF   : Enter stepping flag mode. Not SF Mode by default." << endl;
 				return 0;
 			}
 			else if (strstr(argv[i], "--name=") != NULL)
 			{
 				strcpy(filename, argv[i] + 7);
+			}
+			else if (strstr(argv[i], "--PFA=") != NULL)
+			{
+				PFA=atoi(argv[i] + 6);
+				if (PFA==0) cout << "No prefetch algorithm." << endl;
+				else if (PFA==1) cout << "Next-line prefetch algorithm." << endl;
+				else if (PFA==2) cout << "Prefetch 2 lines." << endl;
+				else if (PFA==3) cout << "Prefetch 4 lines." << endl;
+				else
+				{
+					cout << "ERROR:  Unknown prefetch algorithm flags. See --help." << endl;
+					return 0;
+				}
 			}
 			else if (strcmp(argv[i], "--SF") == 0)
 			{
@@ -135,7 +154,7 @@ int main(int argc, char* argv[])
 	cc1.e = 3;
 	cc1.b = 4;
 	cc1.write_through = 0;
-	cc1.write_allocate = 1;
+	cc1.write_allocate = 1;	
 
 	cc2.s = 9;
 	cc2.e = 3;
@@ -148,10 +167,11 @@ int main(int argc, char* argv[])
 	l1.SetLower(&l2);
 	l1.SetConfig(cc1);
 	l1.BuildCache();
+	l1.PFA = PFA;
 	l2.SetLower(&m);
 	l2.SetConfig(cc2);
 	l2.BuildCache();
-
+	l2.PFA = PFA;
 	StorageStats s;
 	s.access_time = 0;
 	l1.SetStats(s);
