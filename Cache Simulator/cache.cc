@@ -1,9 +1,9 @@
-#include "cache.h"
+ï»¿#include "cache.h"
 #include "def.h"
 
 void Cache::SetConfig(CacheConfig cc)
 {
-	// ÀàËÆµÄsetËùÓĞÉèÖÃ	
+	// ç±»ä¼¼çš„setæ‰€æœ‰è®¾ç½®	
 	config_.write_through = cc.write_through;
 	config_.write_allocate = cc.write_allocate;
 	config_.b = cc.b;
@@ -17,7 +17,7 @@ void Cache::SetConfig(CacheConfig cc)
 
 void Cache::GetConfig(CacheConfig cc)
 {
-	// ÀàËÆµÄgetËùÓĞÉèÖÃ	
+	// ç±»ä¼¼çš„getæ‰€æœ‰è®¾ç½®	
 	cc.write_through = config_.write_through;
 	cc.write_allocate = config_.write_allocate;
 	cc.b = config_.b;
@@ -95,7 +95,7 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 		// Bypass?
 		if (!BypassDecision())
 		{
-			// ³ıÁËbypass£¬ÎŞÂÛÈçºÎ¶¼»áÓĞhit latency		
+			// é™¤äº†bypassï¼Œæ— è®ºå¦‚ä½•éƒ½ä¼šæœ‰hit latency		
 			time += latency_.bus_latency + latency_.hit_latency;
 			stats_.access_time += latency_.bus_latency + latency_.hit_latency;
 
@@ -116,6 +116,11 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 				return;
 			}
 		}
+		// else
+		 //{
+		//	BypassAlgorithm(addr, time);
+		//	return;
+		//}
 		// Prefetch?
 		if (PrefetchDecision())
 		{
@@ -134,8 +139,8 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 	// Write
 	else if (read == 0)
 	{
-		// Ö»¿¼ÂÇwrite back && write allocate !!!
-		// ³ıÁËbypass£¬ÎŞÂÛÈçºÎ¶¼»áÓĞhit latency		
+		// åªè€ƒè™‘write back && write allocate !!!
+		// é™¤äº†bypassï¼Œæ— è®ºå¦‚ä½•éƒ½ä¼šæœ‰hit latency		
 		time += latency_.bus_latency + latency_.hit_latency;
 		stats_.access_time += latency_.bus_latency + latency_.hit_latency;
 
@@ -208,6 +213,21 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 int Cache::BypassDecision()
 {
 	return FALSE;
+	//ä¸€å±‚cacheæ—è·¯ï¼ŒäºŒå±‚cacheä¸æ—è·¯
+	//if (latency_.bus_latency==0) return TRUE;
+	//else return FALSE;
+}
+
+void Cache::BypassAlgorithm(int addr, int &time)
+{
+	// Pass this layer, find in the lower layer
+	int lower_hit, lower_time;
+	char content[32];
+	lower_->HandleRequest(addr, 4, 1, content,
+		lower_hit, lower_time);
+	time += lower_time;
+	stats_.access_counter--;
+	stats_.bypass_num++;
 }
 
 // Read the tag, set_index, block_offset number from the addr.
@@ -334,7 +354,7 @@ int Cache::PrefetchDecision()
 	else return TRUE;	
 }
 
-// Êı¾İÔ¤È¡£¬Ê±¼äÖ»¼ÓÒ»´Î
+// æ•°æ®é¢„å–ï¼Œæ—¶é—´åªåŠ ä¸€æ¬¡
 // PFA=0 means no prefetch algorithm.
 // PFA=1 means next-line prefetch algorithm.
 // PFA=2 means prefetch 2 lines.
@@ -344,8 +364,8 @@ void Cache::PrefetchAlgorithm(int addr, int &time)
 	char content[32];
 	// Fetch from lower layer
 	int lower_hit, lower_time;
-	int new_addr[4] = { 0 };  // Ô¤È¡µØÖ·
-	int fetch_lines = 0;  // Ô¤È¡¸öÊı
+	int new_addr[4] = { 0 };  // é¢„å–åœ°å€
+	int fetch_lines = 0;  // é¢„å–ä¸ªæ•°
 	if (PFA == 1 || PFA == 2) fetch_lines = 2;
 	else if (PFA == 3) fetch_lines = 4;
 	if (PFA == 1)

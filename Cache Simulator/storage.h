@@ -10,14 +10,15 @@
 
 // Storage access stats
 typedef struct StorageStats_ {
-	int access_counter;
-	int miss_num;
+	int access_counter;  // 这层要了几个数据
+	int miss_num;  // 这层miss了几次
 	int access_time; // In cycles
 	int replace_num; // Evict old lines. 在ReplaceAlgorithm()里面加
 	// 在lower_->HandleRequest(addr, bytes, read, content, lower_hit, lower_time);
 	// 之后加fetch_num
 	int fetch_num; // Fetch lower layer
 	int prefetch_num; // Prefetch
+	int bypass_num;  // 有多少次直接忽略了这层
 } StorageStats;
 
 // Storage basic config
