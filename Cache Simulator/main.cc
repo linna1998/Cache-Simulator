@@ -8,7 +8,8 @@
 using namespace std;
 bool SF = false;
 
-void Ana_trace(FILE* &input, Cache &l1, uint64_t &total_hit, uint64_t &total_time)
+void Ana_trace(FILE* &input, Cache &l1, 
+	uint64_t &total_hit, uint64_t &total_time, uint64_t &total_access_counter)
 {
 	char io_op;
 	char c_addr[30];
@@ -17,10 +18,10 @@ void Ana_trace(FILE* &input, Cache &l1, uint64_t &total_hit, uint64_t &total_tim
 	char content[32];
 	int hit = 0, time = 0;		
 	for (int i = 0; i < 20; i++)
-		c_addr[i] = '\0';
-
+		c_addr[i] = '\0';	
 	while (fscanf(input, "%c\t %s\n", &io_op, c_addr) != EOF)	
-	{		
+	{			
+		total_access_counter++;
 		// Read in the addr in hex style
 		addr = 0;
 		int pointer = 2;
@@ -39,7 +40,7 @@ void Ana_trace(FILE* &input, Cache &l1, uint64_t &total_hit, uint64_t &total_tim
 		{
 			cin.get();  // Stepping			
 			printf("*************************************************************************\n");
-			printf("io_op= %c, addr= %lx(%lu)\n", io_op, addr, addr);
+			printf("io_op= %c, addr= %lx(%lu)\n", io_op, addr, addr);			
 		}
 		if (io_op == 'w')
 		{
@@ -58,40 +59,18 @@ void Ana_trace(FILE* &input, Cache &l1, uint64_t &total_hit, uint64_t &total_tim
 		{
 			printf("Hit: %d\n", hit);
 			printf("Access time: %d cycles\n", time);
+			l1.PrintStatus();
 			// printf("L1 Cache.\n");
 			// l1.PrintCache();
 			// printf("*************************************************************************\n");
 		}
 	}
-	StorageStats_ ss;
-	l1.GetStats(ss);
-	printf("L1 Cache: \n");
-	printf("Hit = %d\n", ss.access_counter - ss.miss_num);
-	printf("Num = %d\n", ss.access_counter);
-	printf("Miss Rate= %f\n", (double)(ss.miss_num) / (double)(ss.access_counter));
-	printf("Time= %lld cycles\n", ss.access_time);
-	printf("Replacement = %d\n", ss.replace_num);
-	printf("Fetch num = %d\n", ss.fetch_num);	
-	printf("Prefetch num = %d\n", ss.prefetch_num);
-	printf("\n");
-	Storage * ll;
-	l1.GetLower(ll);
-	ll->GetStats(ss);
-	printf("L2 Cache: \n");
-	printf("Hit = %d\n", ss.access_counter - ss.miss_num);
-	printf("Num = %d\n", ss.access_counter);
-	printf("Miss Rate= %f\n", (double)(ss.miss_num) / (double)(ss.access_counter));
-	printf("Time= %lld cycles\n", ss.access_time);
-	printf("Replacement = %d\n", ss.replace_num);
-	printf("Fetch num = %d\n", ss.fetch_num);
-	printf("Prefetch num = %d\n", ss.prefetch_num);
-	printf("\n");
-
+	l1.PrintStatus();
 	printf("Total: \n");
-	printf("Hit = %d\n", total_hit);
+	printf("Total hit = %d\n", total_hit);
+	printf("Num = %d\n", total_access_counter);
 	printf("Time= %lld cycles\n", total_time);
-	l1.GetStats(ss);
-	printf("AMAT = %f \n", (double)total_time/(double)ss.access_counter);
+	printf("AMAT = %f \n", (double)total_time / (double)total_access_counter);
 }
 
 int main(int argc, char* argv[])
@@ -187,7 +166,7 @@ int main(int argc, char* argv[])
 	m.SetStats(ss);
 
 	StorageLatency ml;
-	// ml.bus_latency = 6;	
+	ml.bus_latency = 0;	
 	ml.hit_latency = 100;
 	m.SetLatency(ml);
 
@@ -199,7 +178,7 @@ int main(int argc, char* argv[])
 	ll2.hit_latency = 4;
 	l2.SetLatency(ll2);
 		
-	uint64_t total_hit = 0, total_time = 0;
+	uint64_t total_hit = 0, total_time = 0, total_access_counter = 0;
 	for (int i = 1; i <= 7; i++)
 	{
 		// Open the file.
@@ -211,7 +190,7 @@ int main(int argc, char* argv[])
 		}
 		printf("******************************************************\n");
 		printf("Analyze trace %d times\n", i);
-		Ana_trace(input, l1, total_hit, total_time);
+		Ana_trace(input, l1, total_hit, total_time, total_access_counter);
 	}
 	return 0;
 }

@@ -78,6 +78,47 @@ void Cache::PrintCache()
 	}
 }
 
+void Cache::PrintStatus()
+{
+	StorageStats ss = stats_;
+	printf("L1 Cache: \n");
+	printf("Hit = %d\n", ss.access_counter - ss.miss_num);
+	printf("Num = %d\n", ss.access_counter);
+	printf("Miss Rate= %f\n", (double)(ss.miss_num) / (double)(ss.access_counter));
+	printf("Time= %d cycles\n", ss.access_time);
+	printf("Replacement = %d\n", ss.replace_num);
+	printf("Fetch num = %d\n", ss.fetch_num);
+	printf("Prefetch num = %d\n", ss.prefetch_num);
+	printf("Bypass num = %d\n", ss.bypass_num);
+	printf("\n");
+
+	Storage * ll = lower_;
+	ll->GetStats(ss);
+	printf("L2 Cache: \n");
+	printf("Hit = %d\n", ss.access_counter - ss.miss_num);
+	printf("Num = %d\n", ss.access_counter);
+	printf("Miss Rate= %f\n", (double)(ss.miss_num) / (double)(ss.access_counter));
+	printf("Time= %d cycles\n", ss.access_time);
+	printf("Replacement = %d\n", ss.replace_num);
+	printf("Fetch num = %d\n", ss.fetch_num);
+	printf("Prefetch num = %d\n", ss.prefetch_num);
+	printf("Bypass num = %d\n", ss.bypass_num);
+	printf("\n");
+
+	Storage* ml;	
+	ll->GetLower(ml);
+	ml->GetStats(ss);
+	printf("Memory:\n");
+	printf("Hit = %d\n", ss.access_counter - ss.miss_num);
+	printf("Num = %d\n", ss.access_counter);
+	printf("Miss Rate= %f\n", (double)(ss.miss_num) / (double)(ss.access_counter));
+	printf("Time= %d cycles\n", ss.access_time);
+	//printf("Replacement = %d\n", ss.replace_num);
+	//printf("Fetch num = %d\n", ss.fetch_num);
+	//printf("Bypass num = %d\n", ss.bypass_num);
+	printf("\n");
+}
+
 void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 	char *content, int &hit, int &time)
 {
@@ -211,10 +252,10 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 }
 
 int Cache::BypassDecision()
-{
-	//一层cache旁路，二层cache不旁路
-	if (latency_.bus_latency==0) return TRUE;
-	else return FALSE;	
+{	
+	return FALSE;
+	////都cache bypass 
+	//return TRUE;
 }
 void Cache::BypassAlgorithm(uint64_t addr, int& time)
 {

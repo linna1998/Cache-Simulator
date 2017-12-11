@@ -37,6 +37,9 @@ public:
 	void GetStats(StorageStats &ss) { ss = stats_; }
 	void SetLatency(StorageLatency sl) { latency_ = sl; }
 	void GetLatency(StorageLatency &sl) { sl = latency_; }
+	// Set lower storage level.
+	void SetLower(Storage *ll) { lower_ = ll; }
+	void GetLower(Storage * & ll) { ll = lower_; }
 
 	// Main access process
 	// [in]  addr: access address
@@ -51,6 +54,7 @@ public:
 protected:
 	StorageStats stats_;
 	StorageLatency latency_;
+	Storage *lower_;
 };
 
 #endif //CACHE_STORAGE_H_ 

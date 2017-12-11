@@ -47,16 +47,15 @@ public:
 	// Sets & Gets
 	void SetConfig(CacheConfig cc);
 	void GetConfig(CacheConfig cc);
-	// Set lower storage level.
-	void SetLower(Storage *ll) { lower_ = ll; }
-	void GetLower(Storage * & ll) { ll = lower_; }
 	void BuildCache();
-	void PrintCache();
+	void PrintCache();	
+	void PrintStatus();
 	// Main access process
 	void HandleRequest(uint64_t addr, int bytes, int read,
 		char *content, int &hit, int &time);
-
+	
 private:
+	
 	// Bypassing
 	int BypassDecision();
 	void BypassAlgorithm(uint64_t addr, int &time);
@@ -74,7 +73,6 @@ private:
 	void PrefetchAlgorithm(int addr, int &time);
 
 	CacheConfig config_;
-	Storage *lower_;
 	vector<Set> data_cache;
 	
 	DISALLOW_COPY_AND_ASSIGN(Cache);
