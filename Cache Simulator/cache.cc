@@ -209,7 +209,17 @@ int Cache::BypassDecision()
 {
 	return FALSE;
 }
-
+void Cache::BypassAlgorithm(uint64_t addr, int& time)
+{
+	// Pass this layer, find in the lower layer
+	int lower_hit, lower_time;
+	char content[32];
+	lower_->HandleRequest(addr, 4, 1, content,
+		lower_hit, lower_time);
+	time += lower_time;
+	stats_.access_counter--;
+	stats_.bypass_num++;
+}
 // Read the tag, set_index, block_offset number from the addr.
 void Cache::PartitionAlgorithm(uint64_t addr, uint64_t& tag,
 	uint64_t & set_index, uint64_t& block_offset)

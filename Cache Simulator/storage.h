@@ -18,6 +18,7 @@ typedef struct StorageStats_ {
 	// Ö®ºó¼Ófetch_num
 	int fetch_num; // Fetch lower layer
 	int prefetch_num; // Prefetch
+	int bypass_num;
 } StorageStats;
 
 // Storage basic config

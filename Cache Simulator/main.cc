@@ -8,10 +8,10 @@
 using namespace std;
 bool SF = false;
 
-void Ana_trace(FILE* &input, Cache &l1, int &total_hit, int &total_time)
+void Ana_trace(FILE* &input, Cache &l1, uint64_t &total_hit, uint64_t &total_time)
 {
 	char io_op;
-	char c_addr[20];
+	char c_addr[30];
 	uint64_t addr;
 	int read;
 	char content[32];
@@ -19,7 +19,7 @@ void Ana_trace(FILE* &input, Cache &l1, int &total_hit, int &total_time)
 	for (int i = 0; i < 20; i++)
 		c_addr[i] = '\0';
 
-	while (fscanf(input, "%c\t %s\n", &io_op, &c_addr) != EOF)	
+	while (fscanf(input, "%c\t %s\n", &io_op, c_addr) != EOF)	
 	{		
 		// Read in the addr in hex style
 		addr = 0;
@@ -172,11 +172,19 @@ int main(int argc, char* argv[])
 	l2.SetConfig(cc2);
 	l2.BuildCache();
 	l2.PFA = PFA;
-	StorageStats s;
-	s.access_time = 0;
-	l1.SetStats(s);
-	l2.SetStats(s);
-	m.SetStats(s);
+	
+	StorageStats ss;
+	ss.access_counter = 0;
+	ss.access_time = 0;
+	ss.bypass_num = 0;
+	ss.fetch_num = 0;
+	ss.miss_num = 0;
+	ss.prefetch_num = 0;
+	ss.prefetch_num = 0;
+	ss.replace_num = 0;
+	l1.SetStats(ss);
+	l2.SetStats(ss);
+	m.SetStats(ss);
 
 	StorageLatency ml;
 	// ml.bus_latency = 6;	
@@ -190,8 +198,8 @@ int main(int argc, char* argv[])
 	ll2.bus_latency = 6;
 	ll2.hit_latency = 4;
 	l2.SetLatency(ll2);
-
-	int total_hit = 0, total_time = 0;
+		
+	uint64_t total_hit = 0, total_time = 0;
 	for (int i = 1; i <= 7; i++)
 	{
 		// Open the file.
