@@ -96,7 +96,7 @@ void Ana_trace(FILE* &input, Cache &l1, int &total_hit, int &total_time)
 
 int main(int argc, char* argv[])
 {
-	char filename[40] = "./01-mcf-gem5-xcg.trace";
+	char filename[15] = "./2.trace";
 	FILE* input;
 	int PFA = 1;  // Prefetch Algorithm.
 	// Parse the arguments.
@@ -107,8 +107,8 @@ int main(int argc, char* argv[])
 			if (strcmp(argv[i], "--help") == 0)
 			{
 				cout << "HELP   :" << endl;
-				cout << "  --name : The excutable file's name. './01-mcf-gem5-xcg.trace' by default." << endl;
-				cout << "           For example, --name=./01-mcf-gem5-xcg.trace" << endl;
+				cout << "  --name : The excutable file's name. './2.trace' by default." << endl;
+				cout << "           For example, --name=./2.trace" << endl;
 				cout << "  --PFA : The prefetch algorithm." << endl;				
 				cout << "           --PFA=0 means no prefetch algorithm." << endl;
 				cout << "           --PFA=1 means next-line prefetch algorithm." << endl;
