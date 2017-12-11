@@ -6,7 +6,7 @@
 #include <math.h>
 #include "storage.h"
 using namespace std;
-
+#define INF 0x3fffffff
 typedef struct CacheConfig_
 {
 	// int size;
@@ -30,6 +30,7 @@ typedef struct Block
 	int tag;
 	vector<bool> dirty;  // dirty==true means ot has been written  
 	vector<int> data_block;
+	int IRR, Recency;  // ÓÃÓÚLIRSÌæ»»²ßÂÔ
 };
 typedef struct Set
 {
@@ -43,6 +44,7 @@ public:
 	Cache() {}
 	~Cache() {}
 	int PFA;  // Prefetch Algorithm. 
+	int RA;  // ReplaceAlgorithm
 
 	// Sets & Gets
 	void SetConfig(CacheConfig cc);
@@ -66,7 +68,9 @@ private:
 		uint64_t  set_index, uint64_t block_offset);
 	// Replacement
 	int ReplaceDecision(uint64_t tag, uint64_t set_index, int read);
-	void ReplaceAlgorithm(uint64_t tag, uint64_t set_index,
+	void ReplaceAlgorithmLRU(uint64_t tag, uint64_t set_index,
+		StorageStats & stats_, int &time);
+	void ReplaceAlgorithmLIRS(uint64_t tag, uint64_t set_index,
 		StorageStats & stats_, int &time);
 	// Prefetching
 	int PrefetchDecision();

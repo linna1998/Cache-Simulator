@@ -34,6 +34,8 @@ void Cache::BuildCache()
 	Block new_block;
 	new_block.tag = 0;
 	new_block.valid = false;
+	new_block.IRR = INF;
+	new_block.Recency = 0;
 	for (int i = 0; i < config_.B; i++)
 	{
 		new_block.data_block.push_back(0);
@@ -105,7 +107,7 @@ void Cache::PrintStatus()
 	printf("Bypass num = %d\n", ss.bypass_num);
 	printf("\n");
 
-	Storage* ml;	
+	Storage* ml;
 	ll->GetLower(ml);
 	ml->GetStats(ss);
 	printf("Memory:\n");
@@ -146,14 +148,53 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 			{
 				stats_.miss_num++;
 				// Choose victim
-				ReplaceAlgorithm(tag, set_index, stats_, time);
+				if (RA == 0)
+				{
+					ReplaceAlgorithmLRU(tag, set_index, stats_, time);
+				}
+				else
+				{
+					ReplaceAlgorithmLIRS(tag, set_index, stats_, time);
+				}
 			}
 			else
 			{
 				// return hit & time, Read hit cache
 				//PrintCache();
 				//printf("READ HIT!\n");
-				hit = 1;
+				uint64_t block_index;
+				for (int i = 0; i < config_.E; i++)
+				{
+					if (data_cache[set_index].data_set[i].tag == tag)
+					{
+						block_index = i;
+						break;
+					}
+				}
+				// Fresh LRU
+				//printf("Read HIT! Fresh LRU\n");
+				data_cache[set_index].value[block_index] = 0;
+				for (int i = 0; i < config_.E; i++)
+				{
+					if (i != block_index && data_cache[set_index].data_set[i].valid == true)
+					{
+						//printf("[%d]: old value %d ", i, data_cache[set_index].value[i]);
+						data_cache[set_index].value[i]++;
+						//printf("new value %d \n", data_cache[set_index].value[i]);
+					}
+				}
+				// Fresh LIRS
+				data_cache[set_index].data_set[block_index].IRR
+					= data_cache[set_index].data_set[block_index].Recency;
+				data_cache[set_index].data_set[block_index].Recency = 0;
+				for (int i = 0; i < config_.E; i++)
+				{
+					if (i != block_index && data_cache[set_index].data_set[i].valid == true)
+					{
+						data_cache[set_index].data_set[i].Recency++;
+					}
+				}
+				hit = 1;				
 				return;
 			}
 		}
@@ -192,7 +233,14 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 		{
 			stats_.miss_num++;
 			// Choose victim
-			ReplaceAlgorithm(tag, set_index, stats_, time);
+			if (RA == 0)
+			{
+				ReplaceAlgorithmLRU(tag, set_index, stats_, time);
+			}
+			else
+			{
+				ReplaceAlgorithmLIRS(tag, set_index, stats_, time);
+			}
 			// Fetch from lower layer
 			int lower_hit, lower_time;
 			lower_->HandleRequest(addr, bytes, read, content,
@@ -232,6 +280,18 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 				}
 			}
 
+			// Fresh LIRS
+			data_cache[set_index].data_set[block_index].IRR
+				= data_cache[set_index].data_set[block_index].Recency;
+			data_cache[set_index].data_set[block_index].Recency = 0;
+			for (int i = 0; i < config_.E; i++)
+			{
+				if (i != block_index && data_cache[set_index].data_set[i].valid == true)
+				{
+					data_cache[set_index].data_set[i].Recency++;
+				}
+			}
+
 			// ???
 			// Write to data_cache[set_index].data_set[block_index].data_block[block_offset]
 
@@ -252,7 +312,7 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 }
 
 int Cache::BypassDecision()
-{	
+{
 	return FALSE;
 	////都cache bypass 
 	//return TRUE;
@@ -318,7 +378,8 @@ int Cache::ReplaceDecision(uint64_t tag, uint64_t set_index, int read)
 	//return FALSE;
 }
 
-void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index,
+// LRU Algorithm
+void Cache::ReplaceAlgorithmLRU(uint64_t tag, uint64_t set_index,
 	StorageStats & stats_, int &time)
 {
 	int out_index = -1;  // replace data_cache[set_index].data_set[out_index]
@@ -328,8 +389,11 @@ void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index,
 	}
 	if (out_index == -1)
 	{
+
 		stats_.replace_num++;  // Need to replace some blocks.
 		out_index = 0;  // If not, cause segmentation fault.
+		
+		// LRU Algorithm
 		for (int i = 0; i < config_.E; i++)
 		{
 			//if (data_cache[set_index].data_set[i].valid >
@@ -341,7 +405,9 @@ void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index,
 			}
 		}
 	}
+
 	// Dirty && Write_back	
+	// 假设一次能写回所有脏位
 	for (int i = 0; i < config_.B; i++)
 	{
 		if (data_cache[set_index].data_set[out_index].dirty[i] == true
@@ -349,7 +415,7 @@ void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index,
 		{
 			// ???
 			// Write block's data[i] back into lower layer
-			int lower_hit, lower_time;
+			int lower_hit = 0, lower_time = 0;
 			char content[32];
 			uint64_t addr;
 			MergeAlgorithm(addr, data_cache[set_index].data_set[out_index].tag,
@@ -357,10 +423,11 @@ void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index,
 			lower_->HandleRequest(addr, 4, 0, content,
 				lower_hit, lower_time);
 			time += lower_time;
-			stats_.fetch_num++;
+			stats_.fetch_num++;         
+			break;
 			// DEBUG
 			// printf("write to lower layer in address %d\n", addr);
-		}
+		}        
 	}
 
 	// Write a new block into cache
@@ -382,6 +449,99 @@ void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index,
 			data_cache[set_index].value[i]++;
 	}
 }
+
+//LIRS算法首先替换IRR最大的页面，其中infinite的值最大，
+//当IRR相同时，替换Recency最大的页面。
+//IRR在一定程度上反应了页面的访问频度，
+//LIRS倾向于认为：一个页面的IRR越大，将来的IRR会变得更大。
+//Recency参数相当于LRU，替换时IRR优先于Recency，这就降低了最后一次访问数据的优先级，
+//因为有些数据虽然最近访问却不一定常用，可能访问过一次之后很久都不再使用，
+//如果Recency优于IRR，这些只使用了一次数据有可能会停留相当长时间。
+// LIRS Algorithm
+void Cache::ReplaceAlgorithmLIRS(uint64_t tag, uint64_t set_index,
+	StorageStats & stats_, int &time)
+{
+	int out_index = -1;  // replace data_cache[set_index].data_set[out_index]
+	// 扔出非法块
+	for (int i = 0; i < config_.E; i++)
+	{
+		if (data_cache[set_index].data_set[i].valid == false) out_index = i;
+	}
+	//先比较INF，再比较Recent，扔块
+	if (out_index == -1)
+	{
+		stats_.replace_num++;  // Need to replace some blocks.
+		out_index = 0;  // If not, cause segmentation fault.
+
+		for (int i = 0; i < config_.E; i++)
+		{
+			if (data_cache[set_index].data_set[i].IRR >
+				data_cache[set_index].data_set[out_index].IRR)
+			{
+				out_index = i;
+			}
+			else if (data_cache[set_index].data_set[i].IRR ==
+				data_cache[set_index].data_set[out_index].IRR)
+			{
+				if (data_cache[set_index].data_set[i].Recency >
+					data_cache[set_index].data_set[out_index].Recency)
+				{
+					out_index = i;
+				}
+			}
+		}
+	}
+
+	// Dirty && Write_back	
+	// 假设一次能写回所有脏位
+	for (int i = 0; i < config_.B; i++)
+	{
+		if (data_cache[set_index].data_set[out_index].dirty[i] == true
+			&& config_.write_through == 0)
+		{
+			// ???
+			// Write block's data[i] back into lower layer
+			int lower_hit = 0, lower_time = 0;
+			char content[32];
+			uint64_t addr;
+			MergeAlgorithm(addr, data_cache[set_index].data_set[out_index].tag,
+				set_index, i);
+			lower_->HandleRequest(addr, 4, 0, content,
+				lower_hit, lower_time);
+			time += lower_time;
+			stats_.fetch_num++;
+			break;
+			// DEBUG
+			// printf("write to lower layer in address %d\n", addr);
+		}
+	}
+
+	// Write a new block into cache
+	for (int i = 0; i < config_.B; i++)
+	{
+		data_cache[set_index].data_set[out_index].dirty[i] = false;
+	}
+	data_cache[set_index].data_set[out_index].tag = tag;
+	data_cache[set_index].data_set[out_index].valid = true;
+	data_cache[set_index].data_set[out_index].IRR = INF;
+	data_cache[set_index].data_set[out_index].Recency = 0;
+	// ???
+	// Fresh data_cache[set_index].data_set[out_index].data_block;
+
+	// fresh the LIRS value	
+	data_cache[set_index].data_set[out_index].IRR =
+		data_cache[set_index].data_set[out_index].Recency;
+	data_cache[set_index].data_set[out_index].Recency = 0;
+	for (int i = 0; i < config_.E; i++)
+	{
+		if (i != out_index)
+		{
+			data_cache[set_index].data_set[out_index].Recency++;
+		}
+	}
+}
+
+
 // PFA=0 means no prefetch algorithm.
 // PFA=1 means next-line prefetch algorithm.
 // PFA=2 means prefetch 2 lines.
@@ -399,6 +559,7 @@ int Cache::PrefetchDecision()
 // PFA=3 means prefetch 4 lines.
 void Cache::PrefetchAlgorithm(int addr, int &time)
 {
+	if (PFA == 0) return;
 	char content[32];
 	// Fetch from lower layer
 	int lower_hit, lower_time;
@@ -432,8 +593,15 @@ void Cache::PrefetchAlgorithm(int addr, int &time)
 		// Miss?
 		if (ReplaceDecision(tag, set_index, 1))
 		{
-			// Choose victim
-			ReplaceAlgorithm(tag, set_index, stats_, time);
+			// Choose victim			
+			if (RA == 0)
+			{
+				ReplaceAlgorithmLRU(tag, set_index, stats_, time);
+			}
+			else
+			{
+				ReplaceAlgorithmLIRS(tag, set_index, stats_, time);
+			}
 		}
 		lower_->HandleRequest(new_addr[i], 4, 1, content,
 			lower_hit, lower_time);

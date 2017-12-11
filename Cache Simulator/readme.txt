@@ -1,4 +1,4 @@
-单层Cache模拟器
+多层Cache模拟器
 简介：
 C++编写的cache模拟器。能够模拟cache的访问时间，miss次数等。
 
@@ -7,11 +7,14 @@ make：
 
 使用方法：
 1. --help进入帮助目录，可以查看详细帮助信息。
-2. --name配置模拟文件的名字。例如--name=./1.trace。默认为1.trace。
-3. --s配置cache的Sets值。默认--s=5.
-4. --e配置cache的组相连程度。默认--e=3.
-5. --b配置cache一个block内部的bytes数。默认--b=6.
-6. --TF配置Write Through策略。--BF配置Write Back策略。默认Write Back策略。
-7. --AF配置Write Allocate策略。--NF配置Write Non-allocate策略。默认Write Allocate策略。
-8. --SF进入单步调试。默认不进入。
-
+2. --name配置模拟文件的名字。例如--name=./01-mcf-gem5-xcg.trace.
+	默认为--name=./01-mcf-gem5-xcg.trace.
+3. --PFA配置预取算法。默认为Next-line prefetch algorithm.
+	--PFA=0 means no prefetch algorithm.
+	--PFA=1 means next-line prefetch algorithm.
+	--PFA=2 means prefetch 2 lines.
+	--PFA=3 means prefetch 4 lines.
+4. --RA配置替换算法。默认为LRU.
+	--RA=0 means LRU.
+	--RA=1 means LIRS
+5. --SF进入单步调试。默认不进入。

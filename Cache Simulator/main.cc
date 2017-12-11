@@ -14,7 +14,7 @@ void Ana_trace(FILE* &input, Cache &l1,
 	char io_op;
 	char c_addr[30];
 	uint64_t addr;
-	int read;
+	int read = 0;
 	char content[32];
 	int hit = 0, time = 0;		
 	for (int i = 0; i < 20; i++)
@@ -78,6 +78,7 @@ int main(int argc, char* argv[])
 	char filename[40] = "./01-mcf-gem5-xcg.trace";
 	FILE* input;
 	int PFA = 1;  // Prefetch Algorithm.
+	int RA = 1;  // Replace Algorithm.
 	// Parse the arguments.
 	if (argc != 1)
 	{
@@ -94,6 +95,9 @@ int main(int argc, char* argv[])
 				cout << "           --PFA=2 means prefetch 2 lines." << endl;
 				cout << "           --PFA=3 means prefetch 4 lines." << endl;
 				cout << "           Next-line prefetch algorithm by default." << endl;
+				cout << "  --RA  : The replace algorithm. LRU by default." << endl;
+				cout << "           --RA=0 means LRU." << endl;
+				cout << "           --RA=1 means LIRS." << endl;
 				cout << "  --SF   : Enter stepping flag mode. Not SF Mode by default." << endl;
 				return 0;
 			}
@@ -110,7 +114,18 @@ int main(int argc, char* argv[])
 				else if (PFA==3) cout << "Prefetch 4 lines." << endl;
 				else
 				{
-					cout << "ERROR:  Unknown prefetch algorithm flags. See --help." << endl;
+					cout << "ERROR:  Unknown prefetch algorithm flag. See --help." << endl;
+					return 0;
+				}
+			}
+			else if (strstr(argv[i], "--RA=") != NULL)
+			{
+				RA = atoi(argv[i] + 5);
+				if (RA == 0) cout << "LRU replace algorithm." << endl;
+				else if (RA == 1) cout << "LIRS replace algorithm." << endl;				
+				else
+				{
+					cout << "ERROR:  Unknown replace algorithm flag. See --help." << endl;
 					return 0;
 				}
 			}
@@ -147,19 +162,19 @@ int main(int argc, char* argv[])
 	l1.SetConfig(cc1);
 	l1.BuildCache();
 	l1.PFA = PFA;
+	l1.RA = RA;
 	l2.SetLower(&m);
 	l2.SetConfig(cc2);
 	l2.BuildCache();
 	l2.PFA = PFA;
-	
+	l1.RA = RA;
 	StorageStats ss;
 	ss.access_counter = 0;
 	ss.access_time = 0;
 	ss.bypass_num = 0;
 	ss.fetch_num = 0;
 	ss.miss_num = 0;
-	ss.prefetch_num = 0;
-	ss.prefetch_num = 0;
+	ss.prefetch_num = 0;	
 	ss.replace_num = 0;
 	l1.SetStats(ss);
 	l2.SetStats(ss);
