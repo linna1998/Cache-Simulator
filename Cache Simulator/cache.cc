@@ -116,6 +116,11 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 				return;
 			}
 		}
+		else
+		{
+			BypassAlgorithm(addr, time);
+			return;
+		}
 		// Prefetch?
 		if (PrefetchDecision())
 		{
@@ -207,7 +212,9 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 
 int Cache::BypassDecision()
 {
-	return FALSE;
+	//一层cache旁路，二层cache不旁路
+	if (latency_.bus_latency==0) return TRUE;
+	else return FALSE;	
 }
 void Cache::BypassAlgorithm(uint64_t addr, int& time)
 {

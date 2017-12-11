@@ -69,7 +69,7 @@ void Ana_trace(FILE* &input, Cache &l1, uint64_t &total_hit, uint64_t &total_tim
 	printf("Hit = %d\n", ss.access_counter - ss.miss_num);
 	printf("Num = %d\n", ss.access_counter);
 	printf("Miss Rate= %f\n", (double)(ss.miss_num) / (double)(ss.access_counter));
-	printf("Time= %d cycles\n", ss.access_time);
+	printf("Time= %lld cycles\n", ss.access_time);
 	printf("Replacement = %d\n", ss.replace_num);
 	printf("Fetch num = %d\n", ss.fetch_num);	
 	printf("Prefetch num = %d\n", ss.prefetch_num);
@@ -81,7 +81,7 @@ void Ana_trace(FILE* &input, Cache &l1, uint64_t &total_hit, uint64_t &total_tim
 	printf("Hit = %d\n", ss.access_counter - ss.miss_num);
 	printf("Num = %d\n", ss.access_counter);
 	printf("Miss Rate= %f\n", (double)(ss.miss_num) / (double)(ss.access_counter));
-	printf("Time= %d cycles\n", ss.access_time);
+	printf("Time= %lld cycles\n", ss.access_time);
 	printf("Replacement = %d\n", ss.replace_num);
 	printf("Fetch num = %d\n", ss.fetch_num);
 	printf("Prefetch num = %d\n", ss.prefetch_num);
@@ -89,7 +89,7 @@ void Ana_trace(FILE* &input, Cache &l1, uint64_t &total_hit, uint64_t &total_tim
 
 	printf("Total: \n");
 	printf("Hit = %d\n", total_hit);
-	printf("Time= %d cycles\n", total_time);
+	printf("Time= %lld cycles\n", total_time);
 	l1.GetStats(ss);
 	printf("AMAT = %f \n", (double)total_time/(double)ss.access_counter);
 }
