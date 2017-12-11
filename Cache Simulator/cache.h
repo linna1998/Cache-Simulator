@@ -59,7 +59,6 @@ public:
 private:
 	// Bypassing
 	int BypassDecision();
-	void BypassAlgorithm(int addr, int &time);
 	// Partitioning
 	void PartitionAlgorithm(uint64_t addr, uint64_t& tag,
 		uint64_t & set_index, uint64_t& block_offset);

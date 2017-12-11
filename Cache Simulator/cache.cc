@@ -116,11 +116,6 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 				return;
 			}
 		}
-		// else
-		 //{
-		//	BypassAlgorithm(addr, time);
-		//	return;
-		//}
 		// Prefetch?
 		if (PrefetchDecision())
 		{
@@ -213,21 +208,6 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 int Cache::BypassDecision()
 {
 	return FALSE;
-	//一层cache旁路，二层cache不旁路
-	//if (latency_.bus_latency==0) return TRUE;
-	//else return FALSE;
-}
-
-void Cache::BypassAlgorithm(int addr, int &time)
-{
-	// Pass this layer, find in the lower layer
-	int lower_hit, lower_time;
-	char content[32];
-	lower_->HandleRequest(addr, 4, 1, content,
-		lower_hit, lower_time);
-	time += lower_time;
-	stats_.access_counter--;
-	stats_.bypass_num++;
 }
 
 // Read the tag, set_index, block_offset number from the addr.
@@ -243,7 +223,7 @@ void Cache::PartitionAlgorithm(uint64_t addr, uint64_t& tag,
 	printf("Partition Algorithm: tag : %lx(%lu)\n", tag, tag);
 	printf("Partition Algorithm: set_index : %lx(%lu)\n", set_index, set_index);
 	printf("Partition Algorithm: block_offset : %lx(%lu)\n",
-		block_offset, block_offset);
+	block_offset, block_offset);
 	*/
 }
 // Merge the addr from the tag, set_index, block_offset.
@@ -258,10 +238,10 @@ void Cache::MergeAlgorithm(uint64_t& addr, uint64_t tag,
 	printf("Partition Algorithm: tag : %lx(%lu)\n", tag, tag);
 	printf("Partition Algorithm: set_index : %lx(%lu)\n", set_index, set_index);
 	printf("Partition Algorithm: block_offset : %lx(%lu)\n",
-		block_offset, block_offset);
+	block_offset, block_offset);
 	printf("Partition Algorithm: addr : %lx(%lu)\n",
-		addr, addr);
-		*/
+	addr, addr);
+	*/
 }
 
 // return true means the cache miss.
@@ -349,9 +329,9 @@ void Cache::ReplaceAlgorithm(uint64_t tag, uint64_t set_index,
 // PFA=2 means prefetch 2 lines.
 // PFA=3 means prefetch 4 lines.
 int Cache::PrefetchDecision()
-{	
+{
 	if (PFA == 0) return FALSE;
-	else return TRUE;	
+	else return TRUE;
 }
 
 // 数据预取，时间只加一次
@@ -386,14 +366,14 @@ void Cache::PrefetchAlgorithm(int addr, int &time)
 			new_addr[i] = new_addr[i - 1] + (1 << config_.b);
 		}
 	}
-	
+
 	for (int i = 0; i < fetch_lines; i++)
 	{
 		uint64_t tag, set_index, block_offset;
 		PartitionAlgorithm(new_addr[i], tag, set_index, block_offset);
 		// Miss?
 		if (ReplaceDecision(tag, set_index, 1))
-		{			
+		{
 			// Choose victim
 			ReplaceAlgorithm(tag, set_index, stats_, time);
 		}
