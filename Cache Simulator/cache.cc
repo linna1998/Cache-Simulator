@@ -135,74 +135,71 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 	// Read.
 	if (read == 1)
 	{
-		// Bypass?
-		if (!BypassDecision(addr))
-		{
-			// 除了bypass，无论如何都会有hit latency		
-			time += latency_.bus_latency + latency_.hit_latency;
-			stats_.access_time += latency_.bus_latency + latency_.hit_latency;
+		// 除了bypass，无论如何都会有hit latency		
+		// bypass 后面会减掉时间开销,access time 等等
+		time += latency_.bus_latency + latency_.hit_latency;
+		stats_.access_time += latency_.bus_latency + latency_.hit_latency;
 
-			PartitionAlgorithm(addr, tag, set_index, block_offset);
-			// Miss?
-			if (ReplaceDecision(tag, set_index))
+		PartitionAlgorithm(addr, tag, set_index, block_offset);
+		// Miss?
+		// if (ReplaceDecision(tag, set_index))
+		if (BypassDecision(addr))
+		{
+			stats_.access_counter--;
+			stats_.bypass_num++;
+			time -= (latency_.bus_latency + latency_.hit_latency);
+			stats_.access_time -= (latency_.bus_latency + latency_.hit_latency);
+			// Choose victim
+			if (RA == 0)
 			{
-				stats_.miss_num++;
-				// Choose victim
-				if (RA == 0)
-				{
-					ReplaceAlgorithmLRU(tag, set_index, stats_, time);
-				}
-				else
-				{
-					ReplaceAlgorithmLIRS(tag, set_index, stats_, time);
-				}
+				ReplaceAlgorithmLRU(tag, set_index, stats_, time);
 			}
 			else
 			{
-				// return hit & time, Read hit cache
-				//PrintCache();
-				//printf("READ HIT!\n");
-				uint64_t block_index;
-				for (int i = 0; i < config_.E; i++)
-				{
-					if (data_cache[set_index].data_set[i].tag == tag)
-					{
-						block_index = i;
-						break;
-					}
-				}
-				// Fresh LRU
-				//printf("Read HIT! Fresh LRU\n");
-				data_cache[set_index].value[block_index] = 0;
-				for (int i = 0; i < config_.E; i++)
-				{
-					if (i != block_index && data_cache[set_index].data_set[i].valid == true)
-					{
-						//printf("[%d]: old value %d ", i, data_cache[set_index].value[i]);
-						data_cache[set_index].value[i]++;
-						//printf("new value %d \n", data_cache[set_index].value[i]);
-					}
-				}
-				// Fresh LIRS
-				data_cache[set_index].data_set[block_index].IRR
-					= data_cache[set_index].data_set[block_index].Recency;
-				data_cache[set_index].data_set[block_index].Recency = 0;
-				for (int i = 0; i < config_.E; i++)
-				{
-					if (i != block_index && data_cache[set_index].data_set[i].valid == true)
-					{
-						data_cache[set_index].data_set[i].Recency++;
-					}
-				}
-				hit = 1;
-				return;
+				ReplaceAlgorithmLIRS(tag, set_index, stats_, time);
 			}
 		}
 		else
 		{
-			BypassAlgorithm(addr, time);
+			// return hit & time, Read hit cache
+			//PrintCache();
+			//printf("READ HIT!\n");
+			uint64_t block_index;
+			for (int i = 0; i < config_.E; i++)
+			{
+				if (data_cache[set_index].data_set[i].tag == tag)
+				{
+					block_index = i;
+					break;
+				}
+			}
+			// Fresh LRU
+			//printf("Read HIT! Fresh LRU\n");
+			data_cache[set_index].value[block_index] = 0;
+			for (int i = 0; i < config_.E; i++)
+			{
+				if (i != block_index && data_cache[set_index].data_set[i].valid == true)
+				{
+					//printf("[%d]: old value %d ", i, data_cache[set_index].value[i]);
+					data_cache[set_index].value[i]++;
+					//printf("new value %d \n", data_cache[set_index].value[i]);
+				}
+			}
+			// Fresh LIRS
+			data_cache[set_index].data_set[block_index].IRR
+				= data_cache[set_index].data_set[block_index].Recency;
+			data_cache[set_index].data_set[block_index].Recency = 0;
+			for (int i = 0; i < config_.E; i++)
+			{
+				if (i != block_index && data_cache[set_index].data_set[i].valid == true)
+				{
+					data_cache[set_index].data_set[i].Recency++;
+				}
+			}
+			hit = 1;
 			return;
 		}
+
 		// Prefetch?
 		if (PrefetchDecision())
 		{
@@ -313,7 +310,13 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 
 int Cache::BypassDecision(uint64_t addr)
 {
-	return FALSE;
+	uint64_t tag;
+	uint64_t set_index;
+	uint64_t block_offset;
+	PartitionAlgorithm(addr, tag, set_index, block_offset);
+
+	return ReplaceDecision(tag, set_index);
+	// return FALSE;
 	////都cache bypass 
 	//return TRUE;
 }
@@ -365,7 +368,6 @@ void Cache::MergeAlgorithm(uint64_t& addr, uint64_t tag,
 // return true means the cache miss.
 int Cache::ReplaceDecision(uint64_t tag, uint64_t set_index)
 {
-
 	for (int i = 0; i < config_.E; i++)
 	{
 		if (data_cache[set_index].data_set[i].tag == tag
@@ -389,7 +391,6 @@ void Cache::ReplaceAlgorithmLRU(uint64_t tag, uint64_t set_index,
 	}
 	if (out_index == -1)
 	{
-
 		stats_.replace_num++;  // Need to replace some blocks.
 		out_index = 0;  // If not, cause segmentation fault.
 
@@ -598,14 +599,15 @@ void Cache::PrefetchAlgorithm(int addr, int &time)
 			{
 				ReplaceAlgorithmLRU(tag, set_index, stats_, time);
 			}
-			else
+			else if (RA == 1)
 			{
 				ReplaceAlgorithmLIRS(tag, set_index, stats_, time);
 			}
 		}
-		lower_->HandleRequest(new_addr[i], 4, 1, content,
-			lower_hit, lower_time);
 	}
+	// Only prefetch from lower layer one time.
+	lower_->HandleRequest(new_addr[0], 4, 1, content,
+		lower_hit, lower_time);
 	time += lower_time;
 	stats_.prefetch_num++;
 }
