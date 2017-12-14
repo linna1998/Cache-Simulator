@@ -145,6 +145,10 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 		// if (ReplaceDecision(tag, set_index))
 		if (BypassDecision(addr))
 		{
+			// DEBUG
+			// printf("BypassDecision(addr) = %d\n", BypassDecision(addr));
+			// printf("MISS\n");
+
 			stats_.access_counter--;
 			stats_.bypass_num++;
 			time -= (latency_.bus_latency + latency_.hit_latency);
@@ -158,13 +162,14 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 			{
 				ReplaceAlgorithmLIRS(tag, set_index, stats_, time);
 			}
+			inCache[addr >> config_.b] = 1;
 		}
 		else
 		{
 			// return hit & time, Read hit cache
 			//PrintCache();
-			//printf("READ HIT!\n");
-			uint64_t block_index;
+			// printf("READ HIT!\n");
+			uint64_t block_index = 0;
 			for (int i = 0; i < config_.E; i++)
 			{
 				if (data_cache[set_index].data_set[i].tag == tag)
@@ -200,6 +205,8 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 			return;
 		}
 
+		// DEBUG
+		// printf("Before prefetch\n");
 		// Prefetch?
 		if (PrefetchDecision())
 		{
@@ -211,6 +218,11 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 			int lower_hit, lower_time;
 			lower_->HandleRequest(addr, bytes, read, content,
 				lower_hit, lower_time);
+
+			// DEBUG
+			// printf("addr>>config_.b = %d\n", addr >> config_.b);
+
+			inCache[addr >> config_.b] = 1;
 			time += lower_time;
 			stats_.fetch_num++;
 		}
@@ -245,6 +257,7 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 			hit = 0;
 			time += lower_time;
 			stats_.fetch_num++;
+			inCache[addr >> config_.b] = 1;
 		}
 		else
 		{
@@ -253,7 +266,7 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 
 		// Write to cache, data_cache[set_index].data_set[block_index]
 		// Find block index.
-		uint64_t block_index;
+		uint64_t block_index = 0;
 		for (int i = 0; i < config_.E; i++)
 		{
 			if (data_cache[set_index].data_set[i].tag == tag)
@@ -294,28 +307,21 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 
 			// Write dirty bit;			
 			data_cache[set_index].data_set[block_index].dirty[block_offset] = true;
-		}
-
-		// Write to lower layer
-		if (config_.write_through == 1)
-		{
-			int lower_hit, lower_time;
-			lower_->HandleRequest(addr, bytes, read, content,
-				lower_hit, lower_time);
-			time += lower_time;
-			stats_.fetch_num++;
-		}
+		}		
 	}
 }
 
 int Cache::BypassDecision(uint64_t addr)
 {
+	/*
 	uint64_t tag;
 	uint64_t set_index;
 	uint64_t block_offset;
 	PartitionAlgorithm(addr, tag, set_index, block_offset);
-
 	return ReplaceDecision(tag, set_index);
+	*/
+	return (!inCache[addr >> config_.b]);
+
 	// return FALSE;
 	////都cache bypass 
 	//return TRUE;
@@ -406,6 +412,10 @@ void Cache::ReplaceAlgorithmLRU(uint64_t tag, uint64_t set_index,
 			}
 		}
 	}
+	uint64_t addr;
+	MergeAlgorithm(addr, data_cache[set_index].data_set[out_index].tag,
+		set_index, 0);
+	inCache[addr >> config_.b] = 0;
 
 	// Dirty && Write_back	
 	// 假设一次能写回所有脏位
@@ -417,14 +427,13 @@ void Cache::ReplaceAlgorithmLRU(uint64_t tag, uint64_t set_index,
 			// ???
 			// Write block's data[i] back into lower layer
 			int lower_hit = 0, lower_time = 0;
-			char content[32];
-			uint64_t addr;
+			char content[32];			
 			MergeAlgorithm(addr, data_cache[set_index].data_set[out_index].tag,
 				set_index, i);
 			lower_->HandleRequest(addr, 4, 0, content,
 				lower_hit, lower_time);
 			time += lower_time;
-			stats_.fetch_num++;
+			stats_.fetch_num++;			
 			break;
 			// DEBUG
 			// printf("write to lower layer in address %d\n", addr);
@@ -492,6 +501,10 @@ void Cache::ReplaceAlgorithmLIRS(uint64_t tag, uint64_t set_index,
 			}
 		}
 	}
+	uint64_t addr;
+	MergeAlgorithm(addr, data_cache[set_index].data_set[out_index].tag,
+		set_index, 0);
+	inCache[addr >> config_.b] = 0;
 
 	// Dirty && Write_back	
 	// 假设一次能写回所有脏位
@@ -504,13 +517,13 @@ void Cache::ReplaceAlgorithmLIRS(uint64_t tag, uint64_t set_index,
 			// Write block's data[i] back into lower layer
 			int lower_hit = 0, lower_time = 0;
 			char content[32];
-			uint64_t addr;
 			MergeAlgorithm(addr, data_cache[set_index].data_set[out_index].tag,
 				set_index, i);
 			lower_->HandleRequest(addr, 4, 0, content,
 				lower_hit, lower_time);
 			time += lower_time;
 			stats_.fetch_num++;
+			
 			break;
 			// DEBUG
 			// printf("write to lower layer in address %d\n", addr);
@@ -603,6 +616,7 @@ void Cache::PrefetchAlgorithm(int addr, int &time)
 			{
 				ReplaceAlgorithmLIRS(tag, set_index, stats_, time);
 			}
+			inCache[new_addr[i] >> config_.b] = 1;
 		}
 	}
 	// Only prefetch from lower layer one time.

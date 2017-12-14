@@ -8,7 +8,7 @@
 using namespace std;
 bool SF = false;
 
-void Ana_trace(FILE* &input, Cache &l1, 
+void Ana_trace(FILE* &input, Cache &l1,
 	uint64_t &total_hit, uint64_t &total_time, uint64_t &total_access_counter)
 {
 	char io_op;
@@ -16,11 +16,11 @@ void Ana_trace(FILE* &input, Cache &l1,
 	uint64_t addr;
 	int read = 0;
 	char content[32];
-	int hit = 0, time = 0;		
+	int hit = 0, time = 0;
 	for (int i = 0; i < 20; i++)
-		c_addr[i] = '\0';	
-	while (fscanf(input, "%c\t %s\n", &io_op, c_addr) != EOF)	
-	{			
+		c_addr[i] = '\0';
+	while (fscanf(input, "%c\t %s\n", &io_op, c_addr) != EOF)
+	{
 		total_access_counter++;
 		// Read in the addr in hex style
 		addr = 0;
@@ -35,12 +35,12 @@ void Ana_trace(FILE* &input, Cache &l1,
 		}
 		for (int i = 0; i < 20; i++)
 			c_addr[i] = '\0';
-		
+
 		if (SF)
 		{
 			cin.get();  // Stepping			
 			printf("*************************************************************************\n");
-			printf("io_op= %c, addr= %lx(%lu)\n", io_op, addr, addr);			
+			printf("io_op= %c, addr= %lx(%lu)\n", io_op, addr, addr);
 		}
 		if (io_op == 'w')
 		{
@@ -51,7 +51,12 @@ void Ana_trace(FILE* &input, Cache &l1,
 			read = 1;
 		}
 		addr >>= 2;
-		l1.HandleRequest(addr, 4, read, content, hit, time);		
+
+		//DEBUG
+		// printf("access counter = %d\n", total_access_counter);
+		// printf("addr= %lx(%lu)\n", addr, addr);
+
+		l1.HandleRequest(addr, 4, read, content, hit, time);
 		total_hit += hit;
 		total_time += time;
 
@@ -89,7 +94,7 @@ int main(int argc, char* argv[])
 				cout << "HELP   :" << endl;
 				cout << "  --name : The excutable file's name. './01-mcf-gem5-xcg.trace' by default." << endl;
 				cout << "           For example, --name=./01-mcf-gem5-xcg.trace" << endl;
-				cout << "  --PFA : The prefetch algorithm." << endl;				
+				cout << "  --PFA : The prefetch algorithm." << endl;
 				cout << "           --PFA=0 means no prefetch algorithm." << endl;
 				cout << "           --PFA=1 means next-line prefetch algorithm." << endl;
 				cout << "           --PFA=2 means prefetch 2 lines." << endl;
@@ -107,11 +112,11 @@ int main(int argc, char* argv[])
 			}
 			else if (strstr(argv[i], "--PFA=") != NULL)
 			{
-				PFA=atoi(argv[i] + 6);
-				if (PFA==0) cout << "No prefetch algorithm." << endl;
-				else if (PFA==1) cout << "Next-line prefetch algorithm." << endl;
-				else if (PFA==2) cout << "Prefetch 2 lines." << endl;
-				else if (PFA==3) cout << "Prefetch 4 lines." << endl;
+				PFA = atoi(argv[i] + 6);
+				if (PFA == 0) cout << "No prefetch algorithm." << endl;
+				else if (PFA == 1) cout << "Next-line prefetch algorithm." << endl;
+				else if (PFA == 2) cout << "Prefetch 2 lines." << endl;
+				else if (PFA == 3) cout << "Prefetch 4 lines." << endl;
 				else
 				{
 					cout << "ERROR:  Unknown prefetch algorithm flag. See --help." << endl;
@@ -122,7 +127,7 @@ int main(int argc, char* argv[])
 			{
 				RA = atoi(argv[i] + 5);
 				if (RA == 0) cout << "LRU replace algorithm." << endl;
-				else if (RA == 1) cout << "LIRS replace algorithm." << endl;				
+				else if (RA == 1) cout << "LIRS replace algorithm." << endl;
 				else
 				{
 					cout << "ERROR:  Unknown replace algorithm flag. See --help." << endl;
@@ -140,7 +145,7 @@ int main(int argc, char* argv[])
 				return 0;
 			}
 		}
-	}	
+	}
 
 	// Set cache.
 	CacheConfig_ cc1, cc2;
@@ -148,7 +153,7 @@ int main(int argc, char* argv[])
 	cc1.e = 3;
 	cc1.b = 4;
 	cc1.write_through = 0;
-	cc1.write_allocate = 1;	
+	cc1.write_allocate = 1;
 
 	cc2.s = 9;
 	cc2.e = 3;
@@ -174,14 +179,14 @@ int main(int argc, char* argv[])
 	ss.bypass_num = 0;
 	ss.fetch_num = 0;
 	ss.miss_num = 0;
-	ss.prefetch_num = 0;	
+	ss.prefetch_num = 0;
 	ss.replace_num = 0;
 	l1.SetStats(ss);
 	l2.SetStats(ss);
 	m.SetStats(ss);
 
 	StorageLatency ml;
-	ml.bus_latency = 0;	
+	ml.bus_latency = 0;
 	ml.hit_latency = 100;
 	m.SetLatency(ml);
 
@@ -192,7 +197,7 @@ int main(int argc, char* argv[])
 	ll2.bus_latency = 6;
 	ll2.hit_latency = 4;
 	l2.SetLatency(ll2);
-		
+
 	uint64_t total_hit = 0, total_time = 0, total_access_counter = 0;
 	for (int i = 1; i <= 7; i++)
 	{

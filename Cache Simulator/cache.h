@@ -1,10 +1,12 @@
 #ifndef CACHE_CACHE_H_
 #define CACHE_CACHE_H_
 
-#include <stdint.h>
-#include <vector>
+#include <bitset>
 #include <math.h>
+#include <stdint.h>
 #include "storage.h"
+#include <vector>
+
 using namespace std;
 #define INF 0x3fffffff
 typedef struct CacheConfig_
@@ -41,10 +43,14 @@ typedef struct Set
 class Cache : public Storage
 {
 public:
-	Cache() {}
+	Cache() 
+	{
+		inCache.reset();
+	}
 	~Cache() {}
 	int PFA;  // Prefetch Algorithm. 
 	int RA;  // ReplaceAlgorithm
+	bitset<(1<<24)> inCache;  // 判断某个地址是否在cache中
 
 	// Sets & Gets
 	void SetConfig(CacheConfig cc);
