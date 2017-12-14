@@ -307,7 +307,7 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 
 			// Write dirty bit;			
 			data_cache[set_index].data_set[block_index].dirty[block_offset] = true;
-		}		
+		}
 	}
 }
 
@@ -427,13 +427,13 @@ void Cache::ReplaceAlgorithmLRU(uint64_t tag, uint64_t set_index,
 			// ???
 			// Write block's data[i] back into lower layer
 			int lower_hit = 0, lower_time = 0;
-			char content[32];			
+			char content[32];
 			MergeAlgorithm(addr, data_cache[set_index].data_set[out_index].tag,
 				set_index, i);
 			lower_->HandleRequest(addr, 4, 0, content,
 				lower_hit, lower_time);
 			time += lower_time;
-			stats_.fetch_num++;			
+			stats_.fetch_num++;
 			break;
 			// DEBUG
 			// printf("write to lower layer in address %d\n", addr);
@@ -523,7 +523,7 @@ void Cache::ReplaceAlgorithmLIRS(uint64_t tag, uint64_t set_index,
 				lower_hit, lower_time);
 			time += lower_time;
 			stats_.fetch_num++;
-			
+
 			break;
 			// DEBUG
 			// printf("write to lower layer in address %d\n", addr);

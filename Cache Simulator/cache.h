@@ -43,27 +43,27 @@ typedef struct Set
 class Cache : public Storage
 {
 public:
-	Cache() 
+	Cache()
 	{
 		inCache.reset();
 	}
 	~Cache() {}
 	int PFA;  // Prefetch Algorithm. 
 	int RA;  // ReplaceAlgorithm
-	bitset<(1<<24)> inCache;  // 判断某个地址是否在cache中
+	bitset<(1 << 24)> inCache;  // 判断某个地址是否在cache中
 
 	// Sets & Gets
 	void SetConfig(CacheConfig cc);
 	void GetConfig(CacheConfig cc);
 	void BuildCache();
-	void PrintCache();	
+	void PrintCache();
 	void PrintStatus();
 	// Main access process
 	void HandleRequest(uint64_t addr, int bytes, int read,
 		char *content, int &hit, int &time);
-	
+
 private:
-	
+
 	// Bypassing
 	int BypassDecision(uint64_t addr);
 	void BypassAlgorithm(uint64_t addr, int &time);
@@ -84,7 +84,7 @@ private:
 
 	CacheConfig config_;
 	vector<Set> data_cache;
-	
+
 	DISALLOW_COPY_AND_ASSIGN(Cache);
 };
 

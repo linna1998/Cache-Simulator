@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
 {
 	char filename[40] = "./01-mcf-gem5-xcg.trace";
 	FILE* input;
-	int PFA = 1;  // Prefetch Algorithm.
+	int PFA = 3;  // Prefetch Algorithm.
 	int RA = 1;  // Replace Algorithm.
 	// Parse the arguments.
 	if (argc != 1)
@@ -99,8 +99,8 @@ int main(int argc, char* argv[])
 				cout << "           --PFA=1 means next-line prefetch algorithm." << endl;
 				cout << "           --PFA=2 means prefetch 2 lines." << endl;
 				cout << "           --PFA=3 means prefetch 4 lines." << endl;
-				cout << "           Next-line prefetch algorithm by default." << endl;
-				cout << "  --RA  : The replace algorithm. LRU by default." << endl;
+				cout << "           Prefetch 4 lines by default." << endl;
+				cout << "  --RA  : The replace algorithm. LIRS by default." << endl;
 				cout << "           --RA=0 means LRU." << endl;
 				cout << "           --RA=1 means LIRS." << endl;
 				cout << "  --SF   : Enter stepping flag mode. Not SF Mode by default." << endl;
