@@ -59,7 +59,7 @@ public:
 private:
 	
 	// Bypassing
-	int BypassDecision();
+	int BypassDecision(uint64_t addr);
 	void BypassAlgorithm(uint64_t addr, int &time);
 	// Partitioning
 	void PartitionAlgorithm(uint64_t addr, uint64_t& tag,
@@ -67,7 +67,7 @@ private:
 	void MergeAlgorithm(uint64_t &addr, uint64_t tag,
 		uint64_t  set_index, uint64_t block_offset);
 	// Replacement
-	int ReplaceDecision(uint64_t tag, uint64_t set_index, int read);
+	int ReplaceDecision(uint64_t tag, uint64_t set_index);
 	void ReplaceAlgorithmLRU(uint64_t tag, uint64_t set_index,
 		StorageStats & stats_, int &time);
 	void ReplaceAlgorithmLIRS(uint64_t tag, uint64_t set_index,

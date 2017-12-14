@@ -136,7 +136,7 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 	if (read == 1)
 	{
 		// Bypass?
-		if (!BypassDecision())
+		if (!BypassDecision(addr))
 		{
 			// 除了bypass，无论如何都会有hit latency		
 			time += latency_.bus_latency + latency_.hit_latency;
@@ -144,7 +144,7 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 
 			PartitionAlgorithm(addr, tag, set_index, block_offset);
 			// Miss?
-			if (ReplaceDecision(tag, set_index, read))
+			if (ReplaceDecision(tag, set_index))
 			{
 				stats_.miss_num++;
 				// Choose victim
@@ -152,7 +152,7 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 				{
 					ReplaceAlgorithmLRU(tag, set_index, stats_, time);
 				}
-				else
+				else if (RA == 1)
 				{
 					ReplaceAlgorithmLIRS(tag, set_index, stats_, time);
 				}
@@ -194,14 +194,13 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 						data_cache[set_index].data_set[i].Recency++;
 					}
 				}
-				hit = 1;				
+				hit = 1;
 				return;
 			}
 		}
 		else
 		{
-			BypassAlgorithm(addr, time);
-			return;
+			BypassAlgorithm(addr, time);			
 		}
 		// Prefetch?
 		if (PrefetchDecision())
@@ -228,7 +227,7 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 
 		PartitionAlgorithm(addr, tag, set_index, block_offset);
 		// Miss?
-		bool miss = ReplaceDecision(tag, set_index, read);
+		bool miss = ReplaceDecision(tag, set_index);
 		if (miss)
 		{
 			stats_.miss_num++;
@@ -237,7 +236,7 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 			{
 				ReplaceAlgorithmLRU(tag, set_index, stats_, time);
 			}
-			else
+			else if (RA == 1)
 			{
 				ReplaceAlgorithmLIRS(tag, set_index, stats_, time);
 			}
@@ -311,23 +310,51 @@ void Cache::HandleRequest(uint64_t addr, int bytes, int read,
 	}
 }
 
-int Cache::BypassDecision()
+int Cache::BypassDecision(uint64_t addr)
 {
+	/*
+	uint64_t tag;
+	uint64_t set_index;
+	uint64_t block_offset;
+	PartitionAlgorithm(addr, tag, set_index, block_offset);
+
+	return ReplaceDecision(tag, set_index);
+	*/
 	return FALSE;
 	////都cache bypass 
 	//return TRUE;
 }
+
+// 访存时cache miss
+// 直接bypass，访问下一层
 void Cache::BypassAlgorithm(uint64_t addr, int& time)
 {
-	// Pass this layer, find in the lower layer
-	int lower_hit, lower_time;
+	time = 0;
+	uint64_t tag;
+	uint64_t set_index;
+	uint64_t block_offset;
 	char content[32];
+	PartitionAlgorithm(addr, tag, set_index, block_offset);
+	// Miss
+	// Fetch from lower layer
+	int lower_hit, lower_time;
 	lower_->HandleRequest(addr, 4, 1, content,
 		lower_hit, lower_time);
 	time += lower_time;
+	stats_.fetch_num++;
+	// Choose victim
+	if (RA == 0)
+	{
+		ReplaceAlgorithmLRU(tag, set_index, stats_, time);
+	}
+	else if (RA == 1)
+	{
+		ReplaceAlgorithmLIRS(tag, set_index, stats_, time);
+	}	
 	stats_.access_counter--;
-	stats_.bypass_num++;
+	stats_.bypass_num++;	
 }
+
 // Read the tag, set_index, block_offset number from the addr.
 void Cache::PartitionAlgorithm(uint64_t addr, uint64_t& tag,
 	uint64_t & set_index, uint64_t& block_offset)
@@ -363,9 +390,8 @@ void Cache::MergeAlgorithm(uint64_t& addr, uint64_t tag,
 }
 
 // return true means the cache miss.
-int Cache::ReplaceDecision(uint64_t tag, uint64_t set_index, int read)
+int Cache::ReplaceDecision(uint64_t tag, uint64_t set_index)
 {
-
 	for (int i = 0; i < config_.E; i++)
 	{
 		if (data_cache[set_index].data_set[i].tag == tag
@@ -392,7 +418,7 @@ void Cache::ReplaceAlgorithmLRU(uint64_t tag, uint64_t set_index,
 
 		stats_.replace_num++;  // Need to replace some blocks.
 		out_index = 0;  // If not, cause segmentation fault.
-		
+
 		// LRU Algorithm
 		for (int i = 0; i < config_.E; i++)
 		{
@@ -423,11 +449,11 @@ void Cache::ReplaceAlgorithmLRU(uint64_t tag, uint64_t set_index,
 			lower_->HandleRequest(addr, 4, 0, content,
 				lower_hit, lower_time);
 			time += lower_time;
-			stats_.fetch_num++;         
+			stats_.fetch_num++;
 			break;
 			// DEBUG
 			// printf("write to lower layer in address %d\n", addr);
-		}        
+		}
 	}
 
 	// Write a new block into cache
@@ -591,14 +617,14 @@ void Cache::PrefetchAlgorithm(int addr, int &time)
 		uint64_t tag, set_index, block_offset;
 		PartitionAlgorithm(new_addr[i], tag, set_index, block_offset);
 		// Miss?
-		if (ReplaceDecision(tag, set_index, 1))
+		if (ReplaceDecision(tag, set_index))
 		{
 			// Choose victim			
 			if (RA == 0)
 			{
 				ReplaceAlgorithmLRU(tag, set_index, stats_, time);
 			}
-			else
+			else if (RA == 1)
 			{
 				ReplaceAlgorithmLIRS(tag, set_index, stats_, time);
 			}
